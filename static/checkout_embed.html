@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة الدفع الفوري | InstaPay Secure Checkout</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                        },
+                        instapay: {
+                            purple: '#4f46e5',
+                            indigo: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Cairo', 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .pulse-subtle {
+            animation: pulseSubtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulseSubtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .75; }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-3 sm:p-4 select-none">
+
+    <!-- Main Container Card -->
+    <div id="checkoutCard" class="w-full max-w-md bg-slate-800/95 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl transition-all duration-300">
+        
+        <!-- Header: Branding & Timer -->
+        <div class="bg-gradient-to-r from-indigo-700 via-purple-700 to-indigo-800 p-4 text-white relative">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center space-x-2 space-x-reverse">
+                    <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shadow-inner">
+                        <i class="fa-solid fa-shield-halved text-emerald-300 text-sm"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold tracking-tight leading-none">تأكيد إنستاباي الآمن</h2>
+                        <span class="text-[10px] text-indigo-200">InstaPay Automated Verification</span>
+                    </div>
+                </div>
+                <!-- Countdown Pill -->
+                <div id="timerContainer" class="flex items-center space-x-1.5 space-x-reverse bg-black/30 border border-white/15 px-2.5 py-1 rounded-full text-xs font-mono">
+                    <i class="fa-regular fa-clock text-amber-300 text-[11px] animate-spin" style="animation-duration: 4s;"></i>
+                    <span id="countdownDisplay" class="font-bold text-amber-300">15:00</span>
+                </div>
+            </div>
+
+            <!-- Merchant & Order info bar -->
+            <div class="flex items-center justify-between text-xs pt-1 border-t border-white/10 text-indigo-100">
+                <div class="flex items-center space-x-1.5 space-x-reverse truncate max-w-[65%]">
+                    <i class="fa-solid fa-store text-emerald-400 text-[11px]"></i>
+                    <span id="merchantName" class="font-medium truncate">جاري التحميل...</span>
+                    <i class="fa-solid fa-circle-check text-emerald-400 text-[10px]" title="تاجر موثّق"></i>
+                </div>
+                <div class="font-mono text-[11px] text-indigo-200">
+                    رقم الطلب: <span id="orderIdDisplay" class="font-semibold text-white">#--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State Spinner -->
+        <div id="loadingView" class="p-8 text-center space-y-4">
+            <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-emerald-500 border-t-transparent"></div>
+            <p class="text-sm text-slate-300">جاري تجهيز جلسة الدفع الآمنة...</p>
+        </div>
+
+        <!-- Error State View -->
+        <div id="errorView" class="hidden p-6 text-center space-y-4">
+            <div class="w-14 h-14 mx-auto rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 text-2xl">
+                <i class="fa-solid fa-circle-exclamation"></i>
+            </div>
+            <h3 id="errorTitle" class="text-base font-bold text-rose-400">جلسة الدفع غير صالحة</h3>
+            <p id="errorMessage" class="text-xs text-slate-400 leading-relaxed">انتهت صلاحية جلسة الدفع أو الرابط غير صالح. يرجى العودة للمتجر وإعادة المحاولة.</p>
+            <button onclick="notifyCancel()" class="w-full py-2.5 px-4 bg-slate-700 hover:bg-slate-600 rounded-xl text-xs font-semibold text-slate-200 transition">
+                إغلاق والعودة للمتجر
+            </button>
+        </div>
+
+        <!-- Active Payment View -->
+        <div id="paymentView" class="hidden p-5 space-y-4">
+
+            <!-- Amount Card -->
+            <div class="bg-gradient-to-br from-slate-900 to-slate-950 p-3.5 rounded-xl border border-slate-700/60 flex items-center justify-between">
+                <div>
+                    <span class="text-[11px] text-slate-400 block">المبلغ المطلوب تحويله</span>
+                    <div class="flex items-baseline space-x-1 space-x-reverse mt-0.5">
+                        <span id="amountDisplay" class="text-2xl font-black text-emerald-400 tracking-tight">0.00</span>
+                        <span id="currencyDisplay" class="text-xs font-bold text-emerald-300">ج.م</span>
+                    </div>
+                </div>
+                <div class="text-left">
+                    <span id="descriptionDisplay" class="text-[11px] text-slate-400 block max-w-[160px] truncate text-left"></span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 mt-1">
+                        <i class="fa-solid fa-bolt ml-1 text-[9px]"></i> فوري 0% رسوم
+                    </span>
+                </div>
+            </div>
+
+            <!-- Transfer Instructions -->
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-200 flex items-center justify-between">
+                    <span>1. حوّل المبلغ إلى عنوان إنستاباي (IPA):</span>
+                    <span class="text-[10px] text-indigo-400 font-normal">اضغط للنسخ السريع</span>
+                </label>
+                
+                <div class="flex items-center bg-slate-900/90 border border-slate-700 rounded-xl p-2.5 hover:border-indigo-500/50 transition">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-900/40 text-indigo-400 flex items-center justify-center ml-2.5">
+                        <i class="fa-solid fa-at text-sm"></i>
+                    </div>
+                    <div class="flex-1 truncate">
+                        <span id="handleDisplay" class="font-mono font-bold text-sm text-indigo-300 tracking-wide select-all">--@instapay</span>
+                    </div>
+                    <button id="copyHandleBtn" onclick="copyHandle()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center space-x-1 space-x-reverse transition shadow-sm">
+                        <i class="fa-regular fa-copy ml-1"></i>
+                        <span id="copyBtnText">نسخ</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Optional QR Code accordion -->
+            <div class="border border-slate-700/60 rounded-xl overflow-hidden bg-slate-900/40">
+                <button onclick="toggleQR()" class="w-full px-3 py-2 text-[11px] text-slate-400 hover:text-slate-200 flex items-center justify-between transition">
+                    <span class="flex items-center">
+                        <i class="fa-solid fa-qrcode ml-1.5 text-indigo-400"></i>
+                        مسح الـ QR Code من تطبيق إنستاباي
+                    </span>
+                    <i id="qrChevron" class="fa-solid fa-chevron-down text-[10px] transition-transform duration-200"></i>
+                </button>
+                <div id="qrContainer" class="hidden p-3 border-t border-slate-800 text-center bg-slate-950/70">
+                    <div class="inline-block p-2 bg-white rounded-xl shadow-lg">
+                        <img id="qrImage" src="" alt="InstaPay QR Code" class="w-36 h-36 mx-auto object-contain">
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-2">افتح تطبيق InstaPay واضغط على "مسح QR" لإتمام التحويل مباشرة</p>
+                </div>
+            </div>
+
+            <!-- Reference ID Input Step -->
+            <div class="space-y-2 pt-1">
+                <label for="referenceInput" class="text-xs font-bold text-slate-200 flex items-center justify-between">
+                    <span>2. أدخل رقم مرجع الرسالة النصية للتحويل (SMS Reference ID):</span>
+                    <span class="text-[10px] text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-comment-sms"></i>من رسالة البنك النصية SMS فقط</span>
+                </label>
+                
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="referenceInput" 
+                        dir="ltr"
+                        placeholder="e.g. 240923000123 (من رسالة البنك النصية SMS)" 
+                        class="w-full px-3.5 py-3 bg-slate-900/90 border border-slate-700 rounded-xl text-white font-mono text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-left transition"
+                        autocomplete="off"
+                        autocorrect="off"
+                    >
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-emerald-400">
+                        <i class="fa-solid fa-comment-sms text-xs"></i>
+                    </div>
+                </div>
+                <p class="text-[11px] text-amber-300/90 leading-tight bg-amber-950/40 border border-amber-500/40 p-2.5 rounded-lg">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-400 ml-1"></i>
+                    <strong>تنبيه هام:</strong> أدخل <u>رقم المرجع الوارد في الرسالة النصية (SMS)</u> المستلمة من البنك بعد التحويل، ولا تدخل الرقم من لقطة شاشة تطبيق إنستاباي (حيث يتم التحقق حصرياً عبر رسائل SMS البنكية الواردة).
+                </p>
+            </div>
+
+            <!-- Alert Box for feedback -->
+            <div id="feedbackAlert" class="hidden p-3 rounded-xl text-xs flex items-start space-x-2 space-x-reverse transition-all">
+                <i id="feedbackIcon" class="fa-solid fa-info-circle text-sm mt-0.5 ml-1"></i>
+                <span id="feedbackText" class="flex-1"></span>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="space-y-2 pt-1">
+                <button 
+                    id="verifyBtn" 
+                    onclick="submitVerification()" 
+                    class="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-emerald-900/30 flex items-center justify-center space-x-2 space-x-reverse transition duration-150 transform active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <span id="verifyBtnSpinner" class="hidden animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent ml-2"></span>
+                    <i id="verifyBtnIcon" class="fa-solid fa-circle-check ml-1.5"></i>
+                    <span id="verifyBtnText">تأكيد الدفع والتحقق الفوري</span>
+                </button>
+
+                <div class="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-1">
+                    <button onclick="notifyCancel()" class="hover:text-rose-400 transition flex items-center">
+                        <i class="fa-solid fa-xmark ml-1"></i> إلغاء الدفع
+                    </button>
+                    <span class="flex items-center text-slate-500">
+                        <i class="fa-solid fa-lock ml-1 text-[10px]"></i> تشفير 256-bit آمن
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Screen View -->
+        <div id="successView" class="hidden p-6 text-center space-y-4">
+            <div class="w-16 h-16 mx-auto rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-3xl animate-bounce">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-emerald-400">تم تأكيد الدفع بنجاح!</h3>
+                <p class="text-xs text-slate-300 mt-1">تمت مطابقة الحوالة في البنك وخصم وحدة التأكيد وتوثيق العملية.</p>
+            </div>
+
+            <div class="bg-slate-900/90 rounded-xl p-3.5 border border-slate-700/60 text-right space-y-2 text-xs font-mono">
+                <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-slate-400 font-sans">رقم الطلب:</span>
+                    <span id="successOrderId" class="font-bold text-white">#--</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-slate-400 font-sans">المبلغ المدفوع:</span>
+                    <span id="successAmount" class="font-bold text-emerald-400">-- ج.م</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-slate-400 font-sans">مرجع الرسالة النصية (SMS Ref):</span>
+                    <span id="successRefId" class="text-indigo-300 break-all select-all">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400 font-sans">وقت المطابقة:</span>
+                    <span id="successTime" class="text-slate-300 font-sans">الآن</span>
+                </div>
+            </div>
+
+            <div id="redirectBanner" class="text-xs text-indigo-300 bg-indigo-950/40 border border-indigo-800/40 p-2.5 rounded-xl">
+                <i class="fa-solid fa-spinner animate-spin ml-1.5"></i>
+                <span id="redirectText">جاري العودة إلى المتجر خلال ثوانٍ...</span>
+            </div>
+
+            <button onclick="finishSuccess()" class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-xs font-bold text-white transition shadow-md">
+                العودة للمتجر الآن
+            </button>
+        </div>
+
+        <!-- Footer watermark -->
+        <div class="bg-slate-950/80 px-4 py-2 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-500">
+            <span>بواسطة منصة متأكد | Motaaked</span>
+            <span class="flex items-center"><i class="fa-solid fa-shield text-emerald-500 ml-1"></i> معتمد ومشفّر</span>
+        </div>
+
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        const state = {
+            sessionToken: new URLSearchParams(window.location.search).get('session') || '',
+            sessionData: null,
+            timerInterval: null,
+            secondsRemaining: 900,
+            isVerifying: false,
+            returnUrl: null,
+        };
+
+        // DOM elements
+        const loadingView = document.getElementById('loadingView');
+        const errorView = document.getElementById('errorView');
+        const paymentView = document.getElementById('paymentView');
+        const successView = document.getElementById('successView');
+        const countdownDisplay = document.getElementById('countdownDisplay');
+        const merchantName = document.getElementById('merchantName');
+        const orderIdDisplay = document.getElementById('orderIdDisplay');
+        const amountDisplay = document.getElementById('amountDisplay');
+        const currencyDisplay = document.getElementById('currencyDisplay');
+        const descriptionDisplay = document.getElementById('descriptionDisplay');
+        const handleDisplay = document.getElementById('handleDisplay');
+        const referenceInput = document.getElementById('referenceInput');
+        const verifyBtn = document.getElementById('verifyBtn');
+        const verifyBtnText = document.getElementById('verifyBtnText');
+        const verifyBtnSpinner = document.getElementById('verifyBtnSpinner');
+        const verifyBtnIcon = document.getElementById('verifyBtnIcon');
+        const feedbackAlert = document.getElementById('feedbackAlert');
+        const feedbackText = document.getElementById('feedbackText');
+        const feedbackIcon = document.getElementById('feedbackIcon');
+
+        async function init() {
+            if (!state.sessionToken) {
+                showError('معرف الجلسة مفقود', 'يرجى فتح رابط الدفع من خلال متجرك أو موقع الشراء.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/v1/checkout/session/${encodeURIComponent(state.sessionToken)}`);
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showError('جلسة غير صالحة', data.detail || 'تعذر تحميل بيانات جلسة الدفع.');
+                    return;
+                }
+
+                state.sessionData = data;
+                state.secondsRemaining = data.seconds_remaining || 0;
+                state.returnUrl = data.return_url || null;
+
+                if (data.status === 'MATCHED') {
+                    showSuccess({
+                        order_id: data.order_id,
+                        amount: data.amount,
+                        reference_id: 'CONFIRMED',
+                        matched_at: 'مسجلة مسبقاً',
+                    });
+                    return;
+                }
+
+                if (data.status === 'EXPIRED' || state.secondsRemaining <= 0) {
+                    showError('انتهت صلاحية الجلسة', 'انتهت فترة الدفع المحددة بـ 15 دقيقة. يرجى إنشاء طلب جديد من المتجر.');
+                    return;
+                }
+
+                renderPaymentView(data);
+                startTimer();
+
+            } catch (err) {
+                console.error(err);
+                showError('خطأ في الاتصال', 'تعذر الاتصال بخادم تأكيد المدفوعات. تأكد من اتصالك بالإنترنت.');
+            }
+        }
+
+        function renderPaymentView(data) {
+            loadingView.classList.add('hidden');
+            errorView.classList.add('hidden');
+            successView.classList.add('hidden');
+            paymentView.classList.remove('hidden');
+
+            merchantName.textContent = data.merchant_name || 'تاجر موثّق';
+            orderIdDisplay.textContent = `#${data.order_id}`;
+            amountDisplay.textContent = Number(data.amount).toFixed(2);
+            currencyDisplay.textContent = data.currency === 'EGP' ? 'ج.م' : data.currency;
+            descriptionDisplay.textContent = data.description || `طلب #${data.order_id}`;
+            handleDisplay.textContent = data.instapay_handle || 'haitham@instapay';
+
+            // Generate QR code for InstaPay handle
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.instapay_handle)}`;
+            document.getElementById('qrImage').src = qrUrl;
+
+            // Submit on Enter key
+            referenceInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    submitVerification();
+                }
+            });
+        }
+
+        function startTimer() {
+            if (state.timerInterval) clearInterval(state.timerInterval);
+
+            function updateDisplay() {
+                if (state.secondsRemaining <= 0) {
+                    clearInterval(state.timerInterval);
+                    countdownDisplay.textContent = '00:00';
+                    verifyBtn.disabled = true;
+                    showFeedback('انتهت صلاحية جلسة الدفع (15 دقيقة). يرجى طلب جلسة جديدة.', 'error');
+                    return;
+                }
+
+                const m = Math.floor(state.secondsRemaining / 60);
+                const s = state.secondsRemaining % 60;
+                countdownDisplay.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                state.secondsRemaining--;
+            }
+
+            updateDisplay();
+            state.timerInterval = setInterval(updateDisplay, 1000);
+        }
+
+        function toggleQR() {
+            const qr = document.getElementById('qrContainer');
+            const chev = document.getElementById('qrChevron');
+            if (qr.classList.contains('hidden')) {
+                qr.classList.remove('hidden');
+                chev.classList.add('rotate-180');
+            } else {
+                qr.classList.add('hidden');
+                chev.classList.remove('rotate-180');
+            }
+        }
+
+        async function copyHandle() {
+            const handle = handleDisplay.textContent.trim();
+            const copyBtnText = document.getElementById('copyBtnText');
+            try {
+                await navigator.clipboard.writeText(handle);
+                copyBtnText.textContent = 'تم النسخ!';
+                setTimeout(() => {
+                    copyBtnText.textContent = 'نسخ';
+                }, 2000);
+            } catch (err) {
+                // Fallback execCommand
+                const ta = document.createElement('textarea');
+                ta.value = handle;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                copyBtnText.textContent = 'تم النسخ!';
+                setTimeout(() => {
+                    copyBtnText.textContent = 'نسخ';
+                }, 2000);
+            }
+        }
+
+        async function submitVerification() {
+            if (state.isVerifying) return;
+            const ref = referenceInput.value.trim();
+
+            if (!ref || ref.length < 4) {
+                showFeedback('يرجى إدخال رقم مرجع الرسالة النصية للتحويل (SMS Reference ID) بشكل صحيح (على الأقل 4 خانات).', 'warning');
+                referenceInput.focus();
+                return;
+            }
+
+            setLoading(true);
+            hideFeedback();
+
+            try {
+                const res = await fetch('/v1/checkout/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_token: state.sessionToken,
+                        reference_id: ref,
+                    }),
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showFeedback(data.detail || data.message || 'تعذر تأكيد العملية. تأكد من صحة رقم مرجع الرسالة النصية (SMS Reference ID) المستلمة من البنك.', 'error');
+                    setLoading(false);
+                    return;
+                }
+
+                if (data.verified) {
+                    // Success!
+                    if (state.timerInterval) clearInterval(state.timerInterval);
+                    showSuccess(data);
+                } else {
+                    showFeedback(data.message || 'لم يتم العثور على تحويل مطابق حتى الآن. تأكد من إتمام التحويل ووصول رسالة البنك النصية SMS ثم أعد المحاولة.', 'warning');
+                    setLoading(false);
+                }
+
+            } catch (err) {
+                console.error(err);
+                showFeedback('حدث خطأ أثناء الاتصال بالخادم. يرجى إعادة المحاولة.', 'error');
+                setLoading(false);
+            }
+        }
+
+        function setLoading(isLoading) {
+            state.isVerifying = isLoading;
+            verifyBtn.disabled = isLoading;
+            if (isLoading) {
+                verifyBtnSpinner.classList.remove('hidden');
+                verifyBtnIcon.classList.add('hidden');
+                verifyBtnText.textContent = 'جاري التحقق من البنك...';
+            } else {
+                verifyBtnSpinner.classList.add('hidden');
+                verifyBtnIcon.classList.remove('hidden');
+                verifyBtnText.textContent = 'تأكيد الدفع والتحقق الفوري';
+            }
+        }
+
+        function showFeedback(msg, type = 'info') {
+            feedbackAlert.classList.remove('hidden', 'bg-rose-950/70', 'border-rose-800', 'text-rose-300', 'bg-amber-950/70', 'border-amber-800', 'text-amber-300', 'bg-slate-900', 'border-slate-700', 'text-slate-300');
+            feedbackAlert.classList.add('border');
+
+            if (type === 'error') {
+                feedbackAlert.classList.add('bg-rose-950/70', 'border-rose-800', 'text-rose-300');
+                feedbackIcon.className = 'fa-solid fa-circle-xmark text-rose-400 text-sm mt-0.5 ml-1';
+            } else if (type === 'warning') {
+                feedbackAlert.classList.add('bg-amber-950/70', 'border-amber-800', 'text-amber-300');
+                feedbackIcon.className = 'fa-solid fa-triangle-exclamation text-amber-400 text-sm mt-0.5 ml-1';
+            } else {
+                feedbackAlert.classList.add('bg-slate-900', 'border-slate-700', 'text-slate-300');
+                feedbackIcon.className = 'fa-solid fa-info-circle text-indigo-400 text-sm mt-0.5 ml-1';
+            }
+
+            feedbackText.textContent = msg;
+        }
+
+        function hideFeedback() {
+            feedbackAlert.classList.add('hidden');
+        }
+
+        function showError(title, message) {
+            loadingView.classList.add('hidden');
+            paymentView.classList.add('hidden');
+            successView.classList.add('hidden');
+            errorView.classList.remove('hidden');
+            document.getElementById('errorTitle').textContent = title;
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('timerContainer').classList.add('hidden');
+        }
+
+        function getSafeTargetOrigin() {
+            try {
+                if (document.referrer) {
+                    const u = new URL(document.referrer);
+                    if (u.origin && u.origin !== 'null') {
+                        return u.origin;
+                    }
+                }
+            } catch (e) {}
+            return '*';
+        }
+
+        function showSuccess(data) {
+            paymentView.classList.add('hidden');
+            loadingView.classList.add('hidden');
+            errorView.classList.add('hidden');
+            successView.classList.remove('hidden');
+
+            document.getElementById('successOrderId').textContent = `#${data.order_id}`;
+            document.getElementById('successAmount').textContent = `${Number(data.amount).toFixed(2)} ج.م`;
+            document.getElementById('successRefId').textContent = data.reference_id;
+            document.getElementById('successTime').textContent = data.matched_at ? new Date().toLocaleTimeString('ar-EG') : 'تمت المطابقة';
+
+            // Post message to parent container iframe with safe targetOrigin
+            const payload = {
+                event: 'motaaked:payment_success',
+                order_id: data.order_id,
+                reference_id: data.reference_id,
+                amount: data.amount,
+                status: 'MATCHED',
+            };
+            try {
+                window.parent.postMessage(payload, getSafeTargetOrigin());
+            } catch (e) {
+                console.warn('postMessage failed', e);
+            }
+
+            // Handle return URL if provided
+            const targetUrl = data.return_url || state.returnUrl;
+            if (targetUrl) {
+                const isSafe = /^https?:\/\//i.test(targetUrl) || targetUrl.startsWith('/');
+                if (!isSafe) {
+                    console.warn('[SECURITY] Blocked unsafe redirect URL:', targetUrl);
+                    document.getElementById('redirectBanner').classList.add('hidden');
+                    return;
+                }
+                let count = 4;
+                const redirectText = document.getElementById('redirectText');
+                const interval = setInterval(() => {
+                    count--;
+                    if (count <= 0) {
+                        clearInterval(interval);
+                        try {
+                            if (window.top) {
+                                window.top.location.href = targetUrl;
+                            } else {
+                                window.location.href = targetUrl;
+                            }
+                        } catch (e) {
+                            window.location.href = targetUrl;
+                        }
+                    } else {
+                        redirectText.textContent = `جاري العودة إلى المتجر خلال ${count} ثوانٍ...`;
+                    }
+                }, 1000);
+            } else {
+                document.getElementById('redirectBanner').classList.add('hidden');
+            }
+        }
+
+        function notifyCancel() {
+            try {
+                window.parent.postMessage({ event: 'motaaked:checkout_cancelled' }, getSafeTargetOrigin());
+            } catch (e) {}
+            if (state.sessionData && state.sessionData.cancel_url) {
+                const cancelUrl = state.sessionData.cancel_url;
+                const isSafe = /^https?:\/\//i.test(cancelUrl) || cancelUrl.startsWith('/');
+                if (!isSafe) {
+                    console.warn('[SECURITY] Blocked unsafe cancel redirect URL:', cancelUrl);
+                    return;
+                }
+                try {
+                    window.top.location.href = cancelUrl;
+                } catch (e) {
+                    window.location.href = cancelUrl;
+                }
+            }
+        }
+
+        function finishSuccess() {
+            const targetUrl = (state.sessionData && state.sessionData.return_url) || state.returnUrl;
+            if (targetUrl) {
+                try {
+                    window.top.location.href = targetUrl;
+                } catch (e) {
+                    window.location.href = targetUrl;
+                }
+            } else {
+                try {
+                    window.parent.postMessage({ event: 'motaaked:close_modal' }, '*');
+                } catch (e) {}
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

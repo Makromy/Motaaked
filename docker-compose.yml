@@ -1,0 +1,31 @@
+services:
+  instapay-api:
+    container_name: instapay-portal
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: instapay-portal:latest
+    restart: unless-stopped
+    ports:
+      # Bound to localhost (127.0.0.1) so traffic is routed securely via aaPanel Nginx
+      - "127.0.0.1:8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./data/instapay.db
+      - MATCH_WINDOW_MINUTES=30
+    env_file:
+      - .env
+    volumes:
+      # Persistent SQLite database and dynamic assets storage
+      - ./data:/app/data
+      - ./static:/app/static
+      - ./app:/app/app
+      - ./.env:/app/.env
+      - ./DEVELOPER_INTEGRATION_GUIDE.md:/app/DEVELOPER_INTEGRATION_GUIDE.md
+    deploy:
+      resources:
+        limits:
+          cpus: '0.85'
+          memory: 512M
+        reservations:
+          cpus: '0.10'
+          memory: 64M

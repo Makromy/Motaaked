@@ -1,0 +1,77 @@
+Business Source License 1.1
+
+Parameters
+
+Licensor:           Haitham Refaat (هيثم رفعت)
+Licensed Work:      Motaaked (متأكد) — Automated InstaPay Payment Matching & Verification Gateway
+Change Date:        2030-01-01
+Change License:     GNU General Public License v3.0 or later (GPL-3.0-or-later)
+
+Additional Use Grant:
+You are granted a non-exclusive, royalty-free right to copy, modify, and run the
+Licensed Work solely for:
+  1. Personal study, academic learning, code auditing, and security review.
+  2. Free self-hosting and internal deployment exclusively to process payments
+     and transactions for your own individual business or direct e-commerce stores.
+  3. Developing, publishing, and contributing open-source integration plugins,
+     SDKs, or modules that connect third-party applications to Motaaked.
+
+Use Limitations (Prohibited Uses):
+You may NOT do any of the following without prior written commercial authorization
+or a formal Commercial License Agreement signed by the Licensor:
+  1. Resell, sublicense, lease, rent, or white-label the Licensed Work (or modified
+     versions thereof) to third parties.
+  2. Provide the Licensed Work as a paid or managed Software-as-a-Service (SaaS),
+     Platform-as-a-Service (PaaS), hosted payment verification gateway, or commercial
+     multi-tenant service competing with or monetizing the Licensor's work.
+  3. Remove, obscure, or alter any copyright, author attribution, or proprietary
+     notices contained in or on the Licensed Work.
+
+Commercial Licensing:
+To obtain commercial rights, white-label permissions, or enterprise SLA support,
+please contact the Licensor directly at: saf7etna@gmail.com
+
+--------------------------------------------------------------------------------
+
+Terms of the Business Source License
+
+1. Grant of License.
+Subject to the terms and conditions of this License and the Use Limitations set forth
+above, Licensor hereby grants you a non-exclusive, worldwide, royalty-free copyright
+license to copy, modify, create derivative works of, and internally execute the
+Licensed Work until the Change Date.
+
+2. Change to Open Source License.
+Effective on the Change Date specified above, or on such earlier date as Licensor may
+determine in its sole discretion, Licensor hereby grants you a perpetual, worldwide,
+royalty-free, non-exclusive license under the Change License (GPL-3.0-or-later) to
+exercise all rights under copyright in the Licensed Work.
+
+3. Trademarks and Brand Rights.
+This License does not grant you rights to use the Licensor's name, logo, or trademarks
+(including "Motaaked", "متأكد", and related identity marks) except as necessary to
+comply with copyright attribution requirements.
+
+4. Disclaimer of Warranties.
+TO THE EXTENT PERMITTED BY APPLICABLE LAW, THE LICENSED WORK IS PROVIDED ON AN
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, EITHER EXPRESS OR
+IMPLIED, INCLUDING, WITHOUT LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE,
+NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE. YOU ARE
+SOLELY RESPONSIBLE FOR DETERMINING THE APPROPRIATENESS OF USING OR REDISTRIBUTING
+THE LICENSED WORK AND ASSUME ANY RISKS ASSOCIATED WITH YOUR EXERCISE OF PERMISSIONS
+UNDER THIS LICENSE.
+
+5. Limitation of Liability.
+IN NO EVENT AND UNDER NO LEGAL THEORY, WHETHER IN TORT (INCLUDING NEGLIGENCE),
+CONTRACT, OR OTHERWISE, SHALL THE LICENSOR BE LIABLE TO YOU FOR DAMAGES, INCLUDING
+ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES OF ANY CHARACTER
+ARISING AS A RESULT OF THIS LICENSE OR OUT OF THE USE OR INABILITY TO USE THE
+LICENSED WORK (INCLUDING BUT NOT LIMITED TO DAMAGES FOR LOSS OF GOODWILL, WORK
+STOPPAGE, COMPUTER FAILURE OR MALFUNCTION, OR ANY AND ALL OTHER COMMERCIAL DAMAGES
+OR LOSSES), EVEN IF THE LICENSOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+6. Governing Law.
+This License shall be governed by and construed in accordance with the laws of the
+Arab Republic of Egypt, without regard to its conflict of law principles. Any dispute
+arising under this License shall be subject to the exclusive jurisdiction of the
+competent courts in Cairo, Egypt.

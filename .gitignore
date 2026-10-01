@@ -1,0 +1,93 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# SQLite Databases & Backups
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+
+# Logs & Audit
+*.log
+logs/
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating System
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+.DS_Store
+
+# Temporary uploads / artifacts
+tmp/
+temp/
+scratch/
+archive/
+
+# Distribution & Deployment Archives
+*.zip
+*.tar.gz
+*.rar
+
+# AI Agent Skills & System
+.ai/
+
+# Local Scratch & One-off Test Scripts
+test_livestream_terminal.py
+instapay_Microservice_Approach.txt
+run.bat
+COMMERCIAL_LICENSE_AGREEMENT.md
+
+
+
+
+

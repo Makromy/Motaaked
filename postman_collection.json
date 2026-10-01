@@ -1,0 +1,177 @@
+{
+  "info": {
+    "name": "InstaPay Verification API",
+    "description": "API collection for testing InstaPay SMS Webhook, Multi-User API Keys, and Payment Matching Engine",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Admin - Create API Key",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{admin_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Ahmed LMS Client\",\n  \"role\": \"user\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/admin/keys/create",
+          "host": ["{{base_url}}"],
+          "path": ["v1", "admin", "keys", "create"]
+        }
+      }
+    },
+    {
+      "name": "Admin - List All API Keys",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{admin_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/v1/admin/keys/list",
+          "host": ["{{base_url}}"],
+          "path": ["v1", "admin", "keys", "list"]
+        }
+      }
+    },
+    {
+      "name": "Admin - Revoke API Key",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{admin_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"key\": \"instapay_live_...\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/admin/keys/revoke",
+          "host": ["{{base_url}}"],
+          "path": ["v1", "admin", "keys", "revoke"]
+        }
+      }
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/v1/health",
+          "host": ["{{base_url}}"],
+          "path": ["v1", "health"]
+        }
+      }
+    },
+    {
+      "name": "Ingest SMS Webhook",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{user_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"raw_message\": \"Your HSBC Account ********1001 was credited with IPN inward transfer for EGP 1500.00 from AHMED with reference IPN260822143000.\",\n  \"sender\": \"HSBC\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/webhook/sms",
+          "host": ["{{base_url}}"],
+          "path": ["v1", "webhook", "sms"]
+        }
+      }
+    },
+    {
+      "name": "Create Pending Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{user_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"order_id\": \"ORD-9901\",\n  \"amount\": 1500.00\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/orders/create",
+          "host": ["{{base_url}}"],
+          "path": ["v1", "orders", "create"]
+        }
+      }
+    },
+    {
+      "name": "Verify Order Payment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{user_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"order_id\": \"ORD-9901\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/orders/verify",
+          "host": ["{{base_url}}"],
+          "path": ["v1", "orders", "verify"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "admin_key",
+      "value": "XAZAjxjhbCtSgiq7"
+    },
+    {
+      "key": "user_key",
+      "value": "XAZAjxjhbCtSgiq7"
+    }
+  ]
+}
