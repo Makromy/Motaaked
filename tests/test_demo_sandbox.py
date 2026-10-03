@@ -177,6 +177,41 @@ def test_demo_livestream_feed_and_unlock(client):
     assert ls_data["telemetry"]["status"] == "ONLINE"
 
 
+def test_demo_watchlist_search_and_poll(client):
+    """Verifies that searching a synthetic bank reference ID (e.g. CIB) immediately matches on the watchlist."""
+    # 1. Watch synthetic CIB reference
+    res_watch = client.post(
+        "/v1/watchlist/watch",
+        headers={"X-Passcode": "DEMO-SANDBOX-2026"},
+        json={
+            "reference_id": "24100200101",
+            "session_id": "sess_demo_test",
+            "timeout_minutes": 30
+        }
+    )
+    assert res_watch.status_code == 201
+    watch_data = res_watch.json()
+    assert watch_data["status"] == "MATCHED"
+    assert watch_data["reference_id"] == "24100200101"
+    assert watch_data["matched_credit"]["amount"] == 450.0
+    assert watch_data["matched_credit"]["sender_name"] == "Haitham Refaat"
+    assert watch_data["matched_credit"]["account_ending"] == "4812"
+
+    # 2. Batch poll synthetic references
+    res_poll = client.post(
+        "/v1/watchlist/poll",
+        headers={"X-Passcode": "DEMO-SANDBOX-2026"},
+        json={
+            "reference_ids": ["24100200101", "24100200102", "NON_EXISTENT_REF"],
+            "session_id": "sess_demo_test"
+        }
+    )
+    assert res_poll.status_code == 200
+    poll_data = res_poll.json()
+    assert poll_data["total_matched"] == 2
+    assert poll_data["total_pending"] == 1
+
+
 def test_demo_mutations_strictly_blocked_with_403(client):
     """
     Zero-Trust Security Test:

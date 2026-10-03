@@ -1182,6 +1182,54 @@
       color: #0f172a !important;
     }
 
+    /* Demo Sandbox Mode Notification Ribbon - Day Mode (Light Theme) */
+    html.light #demo-mode-ribbon {
+      background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 50%, #f0fdfa 100%) !important;
+      background-image: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 50%, #f0fdfa 100%) !important;
+      border: 1px solid #6ee7b7 !important;
+      box-shadow: 0 4px 20px -4px rgba(16, 185, 129, 0.18), 0 2px 6px -2px rgba(16, 185, 129, 0.1) !important;
+    }
+    html.light #demo-mode-ribbon .demo-ribbon-icon-box {
+      background-color: #d1fae5 !important;
+      color: #059669 !important;
+      border: 1px solid #6ee7b7 !important;
+    }
+    html.light #demo-mode-ribbon #txt-demo-ribbon-title {
+      color: #064e3b !important;
+    }
+    html.light #demo-mode-ribbon .demo-ribbon-badge {
+      background-color: #d1fae5 !important;
+      color: #065f46 !important;
+      border: 1px solid #6ee7b7 !important;
+    }
+    html.light #demo-mode-ribbon #txt-demo-ribbon-desc {
+      color: #047857 !important;
+    }
+    html.light #demo-mode-ribbon #btn-demo-test-search {
+      background-color: #059669 !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 12px -2px rgba(5, 150, 105, 0.3) !important;
+    }
+    html.light #demo-mode-ribbon #btn-demo-test-search:hover {
+      background-color: #047857 !important;
+    }
+    html.light #demo-mode-ribbon #btn-demo-exit {
+      background-color: #ffffff !important;
+      color: #334155 !important;
+      border: 1px solid #cbd5e1 !important;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+    }
+    html.light #demo-mode-ribbon #btn-demo-exit:hover {
+      background-color: #f1f5f9 !important;
+      color: #0f172a !important;
+      border-color: #94a3b8 !important;
+    }
+    html.light #user-header-section .bg-emerald-500\/20 {
+      background-color: #d1fae5 !important;
+      color: #065f46 !important;
+      border-color: #6ee7b7 !important;
+    }
+
   </style>
 </head>
 
@@ -1332,7 +1380,7 @@
               <span class="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Active Banks</span>
             </div>
             <p id="txt-banks-list" class="text-xs text-slate-400 font-mono">
-              CIB, NBE, Banque Misr, HSBC, QNB, AlexBank, AAIB & Insta IPN
+              CIB, NBE, HSBC, QNB, AlexBank, AAIB & Insta IPN
             </p>
           </div>
 
@@ -1606,15 +1654,15 @@
     <div id="app-content" class="space-y-6 opacity-30 pointer-events-none">
 
       <!-- Demo Sandbox Notification Ribbon -->
-      <div id="demo-mode-ribbon" class="hidden bg-gradient-to-r from-emerald-950/90 via-slate-900 to-teal-950/90 border border-emerald-500/50 rounded-2xl p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
+      <div id="demo-mode-ribbon" class="hidden bg-gradient-to-r from-emerald-950/90 via-slate-900 to-teal-950/90 border border-emerald-500/50 rounded-2xl p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs transition-colors duration-200">
         <div class="flex items-center gap-3.5 min-w-0">
-          <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg shrink-0 border border-emerald-500/40">
+          <div class="demo-ribbon-icon-box w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg shrink-0 border border-emerald-500/40">
             <i class="fa-solid fa-gamepad animate-pulse"></i>
           </div>
           <div class="space-y-0.5 min-w-0">
             <div class="font-bold text-white flex flex-wrap items-center gap-2">
               <span id="txt-demo-ribbon-title">🎮 Live Demo Sandbox Mode (Zero-Trust Simulation)</span>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-wider">Synthetic Air-Gap</span>
+              <span id="txt-demo-ribbon-badge" class="demo-ribbon-badge px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-wider">Synthetic Air-Gap</span>
             </div>
             <p class="text-slate-300 text-xs leading-relaxed" id="txt-demo-ribbon-desc">
               You are exploring the portal with synthetic Egyptian bank transfers (CIB, NBE, HSBC, QNB, AlexBank, AAIB). Database writes and live credit deductions are disabled.
@@ -1623,6 +1671,7 @@
         </div>
         <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto">
           <button 
+            id="btn-demo-test-search"
             type="button"
             onclick="populateDemoSearchRef()" 
             class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs transition shadow-md shadow-emerald-600/30 flex items-center gap-1.5 cursor-pointer"
@@ -1631,11 +1680,12 @@
             <span id="txt-demo-test-search">Test Search (CIB)</span>
           </button>
           <button 
+            id="btn-demo-exit"
             type="button"
             onclick="logoutUser()" 
-            class="px-3 py-2 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl font-bold text-xs transition border border-slate-700 cursor-pointer"
+            class="px-3 py-2 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl font-bold text-xs transition border border-slate-700 cursor-pointer flex items-center gap-1.5"
           >
-            <i class="fa-solid fa-right-from-bracket mr-1"></i>
+            <i class="fa-solid fa-right-from-bracket"></i>
             <span id="txt-demo-exit">Exit Demo</span>
           </button>
         </div>
@@ -6353,7 +6403,7 @@
         feat4Title: "Audit-Ready Reports",
         feat4Desc: "Matched SMS Report Excel export and All SMS Received with status in PDF statement generation.",
         banksTitle: "Supported Bank Network:",
-        banksList: "CIB, NBE, Banque Misr, HSBC, QNB, AlexBank, AAIB & Insta IPN",
+        banksList: "CIB, NBE, HSBC, QNB, AlexBank, AAIB & Insta IPN",
         phase2Title: "Phase 2: Support E-Commerce to Validate transactions from outside our portal",
         phase2Desc: "Universal 8-Platform Plugin Suite: WordPress, WooCommerce, LearnDash, Moodle, Shopify, React, Node.js, Laravel",
         authTabSignIn: "Sign In with Passcode",
@@ -6364,6 +6414,14 @@
         passcodePlaceholder: "e.g. XXXX-DEMO-2027 (As Received In Mail)",
         forgotPasscodeLink: "Forgot your Passcode? Send to email",
         btnUnlock: "Unlock Dashboard",
+        demoLoginBtn: "🎮 Try Live Demo (Instant Sandbox)",
+        demoRibbonTitle: "🎮 Live Demo Sandbox Mode (Zero-Trust Simulation)",
+        demoRibbonBadge: "SYNTHETIC AIR-GAP",
+        demoRibbonDesc: "You are exploring the portal with synthetic Egyptian bank transfers (CIB, NBE, HSBC, QNB, AlexBank, AAIB). Database writes and live credit deductions are disabled.",
+        demoTestSearchBtn: "Test Search (CIB)",
+        demoExitBtn: "Exit Demo",
+        demoMerchantName: "Demo Merchant (Sandbox)",
+        demoBadgeText: "DEMO",
         recoverTitle: "Recover Your Passcode",
         recoverSubtitle: "Enter your registered email address to receive your login credentials",
         registeredEmailLbl: "Registered Email Address",
@@ -6894,7 +6952,7 @@
         feat4Title: "تقارير محاسبية معتمدة",
         feat4Desc: "تصدير تقارير Excel للمدفوعات المؤكدة وكشوفات PDF رسمية لكافة رسائل البنك الواردة.",
         banksTitle: "البنوك المدعومة:",
-        banksList: "CIB، البنك الأهلي، بنك مصر، HSBC، بنك QNB، بنك الإسكندرية، AAIB، وشبكة IPN",
+        banksList: "CIB، البنك الأهلي المصري، HSBC، بنك QNB، بنك الإسكندرية، AAIB، وشبكة IPN",
         phase2Title: "المرحلة القادمة: دعم المتاجر الإلكترونية للتحقق من خارج البوابة",
         phase2Desc: "حزم ربط جاهزة لكافة المنصات: WordPress، وWooCommerce، وLearnDash، وMoodle، وShopify، وReact، وNode.js، وLaravel",
         authTabSignIn: "تسجيل الدخول برمز المرور",
@@ -6905,6 +6963,14 @@
         passcodePlaceholder: "مثال: XXXX-DEMO-2027 (كما وصلك بالبريد)",
         forgotPasscodeLink: "نسيت رمز المرور؟ إرسال إلى البريد",
         btnUnlock: "فتح لوحة التحكم",
+        demoLoginBtn: "🎮 تجربة حية للمنظومة (دخول تجريبي فوري)",
+        demoRibbonTitle: "🎮 وضع التجربة الحية المعزول (محاكاة بنكية بدون تأثير على البيانات)",
+        demoRibbonBadge: "بيئة معزولة 100%",
+        demoRibbonDesc: "أنت الآن تستكشف المنظومة عبر إشعارات بنكية تجريبية للبنوك المصرية (CIB، الأهلي المصري، HSBC، QNB، بنك الإسكندرية، AAIB). عمليات التعديل وخصم الرصيد معطلة.",
+        demoTestSearchBtn: "تجربة استعلام (CIB)",
+        demoExitBtn: "إنهاء التجربة",
+        demoMerchantName: "تاجر تجريبي (Sandbox)",
+        demoBadgeText: "تجريبي",
         recoverTitle: "استعادة رمز المرور",
         recoverSubtitle: "أدخل بريدك الإلكتروني المسجل لاستلام بيانات الدخول",
         registeredEmailLbl: "البريد الإلكتروني المسجل",
@@ -7557,6 +7623,14 @@ setTxt("lang-toggle-text", t.langBtn);
       setAttr("input-passcode", "placeholder", t.passcodePlaceholder);
       setTxt("txt-forgot-passcode-link", t.forgotPasscodeLink);
       setTxt("txt-btn-unlock", t.btnUnlock);
+      setTxt("txt-btn-demo", t.demoLoginBtn);
+
+      // Demo Sandbox Ribbon
+      setTxt("txt-demo-ribbon-title", t.demoRibbonTitle);
+      setTxt("txt-demo-ribbon-badge", t.demoRibbonBadge);
+      setTxt("txt-demo-ribbon-desc", t.demoRibbonDesc);
+      setTxt("txt-demo-test-search", t.demoTestSearchBtn);
+      setTxt("txt-demo-exit", t.demoExitBtn);
 
       setTxt("txt-recover-title", t.recoverTitle);
       setTxt("txt-recover-subtitle", t.recoverSubtitle);
@@ -8467,6 +8541,7 @@ setTxt("lang-toggle-text", t.langBtn);
           if (userProfile.role === "demo") {
             const ribbon = document.getElementById("demo-mode-ribbon");
             if (ribbon) ribbon.classList.remove("hidden");
+            applyTranslations();
             safeSession.setItem("instapay_shift_token", "demo_shift_token_2026");
             safeSession.setItem("instapay_cashier_unlocked", "true");
           } else {
@@ -8719,9 +8794,8 @@ setTxt("lang-toggle-text", t.langBtn);
         inp.value = "24100200101";
         inp.focus();
       }
-      if (typeof handleSingleSearch === "function") {
-        handleSingleSearch();
-      }
+      const fakeEvent = { preventDefault: () => {} };
+      handleSearchAndWatch(fakeEvent);
     }
 
     function logoutUser() {
@@ -8813,6 +8887,7 @@ setTxt("lang-toggle-text", t.langBtn);
       }
 
       const isDemo = (userProfile.role === "demo");
+      const merchantDisplayName = isDemo ? (isAr ? "تاجر تجريبي (Sandbox)" : (userProfile.name || "Demo Merchant (Sandbox)")) : userProfile.name;
       const expiry = new Date(userProfile.subscription_expires_at);
       const diffDays = Math.max(0, Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24)));
       const creditsLabel = isAr ? "رصيد" : "Credits";
@@ -8827,8 +8902,8 @@ setTxt("lang-toggle-text", t.langBtn);
       container.innerHTML = `
         <button onclick="openUserProfileModal()" title="${profileTooltip}" class="flex items-center gap-1.5 bg-slate-950 hover:bg-slate-800 border ${isDemo ? 'border-emerald-500/50' : 'border-slate-800'} px-2 sm:px-3 py-1.5 rounded-xl text-xs font-mono transition group shrink-0 cursor-pointer">
           <i class="fa-solid ${isDemo ? 'fa-gamepad text-emerald-400' : 'fa-user-gear text-indigo-400'} group-hover:rotate-45 transition duration-300 text-xs sm:text-sm"></i>
-          <span class="text-slate-300 font-bold truncate max-w-[75px] sm:max-w-[150px]">${userProfile.name}</span>
-          ${isDemo ? '<span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">DEMO</span>' : `<span class="text-slate-600 hidden sm:inline">|</span><span class="text-indigo-400 font-bold hidden sm:inline">${userProfile.passcode}</span>`}
+          <span class="text-slate-300 font-bold truncate max-w-[75px] sm:max-w-[150px]">${merchantDisplayName}</span>
+          ${isDemo ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">${isAr ? 'تجريبي' : 'DEMO'}</span>` : `<span class="text-slate-600 hidden sm:inline">|</span><span class="text-indigo-400 font-bold hidden sm:inline">${userProfile.passcode}</span>`}
         </button>
 
         <!-- Merged Credits & Pass Validity Button (Opens Wallet Breakdown Modal) -->

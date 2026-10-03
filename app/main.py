@@ -573,7 +573,8 @@ def watch_reference(
     Otherwise returns status='PENDING' with a countdown timer to poll.
     Deducts 1 search credit for Passcode users.
     """
-    from app.auth import extract_candidate_keys, get_current_master_keys
+    from app.auth import extract_candidate_keys, get_current_master_keys, is_demo_passcode
+    from app.demo_sandbox import search_demo_transactions
     from app.services import deduct_credits
     from sqlalchemy import func
 
@@ -581,6 +582,52 @@ def watch_reference(
     candidates = extract_candidate_keys(x_passcode, passcode, None)
     if candidates:
         cand = candidates[0].replace(" ", "").upper()
+        if is_demo_passcode(cand):
+            # Demo Sandbox Mode: In-Memory Zero-Trust Match
+            demo_results = search_demo_transactions(reference_id=payload.reference_id)
+            now = utc_now()
+            if demo_results:
+                matched_item = demo_results[0]
+                matched_credit = IncomingCreditRead(
+                    id=matched_item["id"],
+                    user_id=999999,
+                    account_ending=matched_item["account_ending"],
+                    amount=matched_item["amount"],
+                    currency=matched_item["currency"],
+                    sender_name=matched_item["sender_name"],
+                    reference_id=matched_item["reference_id"],
+                    status=matched_item["status"],
+                    is_matched=matched_item["is_matched"],
+                    matched_at=matched_item["matched_at"],
+                    received_at=matched_item["received_at"],
+                    matched_order_id=None,
+                )
+                return WatchedReferenceItem(
+                    id=matched_item["id"],
+                    reference_id=matched_item["reference_id"],
+                    status="MATCHED",
+                    created_at=now,
+                    expires_at=now + timedelta(minutes=30),
+                    matched_at=matched_item["matched_at"] or now,
+                    matched_credit=matched_credit,
+                    seconds_remaining=0,
+                    credits_remaining=500,
+                    already_matched=matched_item["is_matched"],
+                )
+            else:
+                return WatchedReferenceItem(
+                    id=9999,
+                    reference_id=payload.reference_id,
+                    status="PENDING",
+                    created_at=now,
+                    expires_at=now + timedelta(minutes=payload.timeout_minutes or 30),
+                    matched_at=None,
+                    matched_credit=None,
+                    seconds_remaining=int((payload.timeout_minutes or 30) * 60),
+                    credits_remaining=500,
+                    already_matched=False,
+                )
+
         master_keys = get_current_master_keys()
         is_master = any(cand == m.replace(" ", "").upper() for m in master_keys)
         if not is_master:
@@ -633,13 +680,70 @@ def poll_active_watchlist(
     Batch polls active and recently resolved watched reference items for a session.
     Auto-expires timed out watches and updates live countdowns.
     """
-    from app.auth import extract_candidate_keys, get_current_master_keys
+    from app.auth import extract_candidate_keys, get_current_master_keys, is_demo_passcode
+    from app.demo_sandbox import search_demo_transactions
     from sqlalchemy import func
 
     user = None
     candidates = extract_candidate_keys(x_passcode, passcode, None)
     if candidates:
         cand = candidates[0].replace(" ", "").upper()
+        if is_demo_passcode(cand):
+            poll_items = []
+            now = utc_now()
+            total_matched = 0
+            total_pending = 0
+            for ref in (payload.reference_ids or []):
+                demo_results = search_demo_transactions(reference_id=ref)
+                if demo_results:
+                    matched_item = demo_results[0]
+                    matched_credit = IncomingCreditRead(
+                        id=matched_item["id"],
+                        user_id=999999,
+                        account_ending=matched_item["account_ending"],
+                        amount=matched_item["amount"],
+                        currency=matched_item["currency"],
+                        sender_name=matched_item["sender_name"],
+                        reference_id=matched_item["reference_id"],
+                        status=matched_item["status"],
+                        is_matched=matched_item["is_matched"],
+                        matched_at=matched_item["matched_at"],
+                        received_at=matched_item["received_at"],
+                        matched_order_id=None,
+                    )
+                    poll_items.append(WatchedReferenceItem(
+                        id=matched_item["id"],
+                        reference_id=matched_item["reference_id"],
+                        status="MATCHED",
+                        created_at=now - timedelta(seconds=10),
+                        expires_at=now + timedelta(minutes=30),
+                        matched_at=matched_item["matched_at"] or now,
+                        matched_credit=matched_credit,
+                        seconds_remaining=0,
+                        credits_remaining=500,
+                        already_matched=matched_item["is_matched"],
+                    ))
+                    total_matched += 1
+                else:
+                    poll_items.append(WatchedReferenceItem(
+                        id=9999,
+                        reference_id=ref,
+                        status="PENDING",
+                        created_at=now,
+                        expires_at=now + timedelta(minutes=30),
+                        matched_at=None,
+                        matched_credit=None,
+                        seconds_remaining=1800,
+                        credits_remaining=500,
+                        already_matched=False,
+                    ))
+                    total_pending += 1
+            return WatchlistBatchPollResponse(
+                items=poll_items,
+                total_pending=total_pending,
+                total_matched=total_matched,
+            )
+
         master_keys = get_current_master_keys()
         is_master = any(cand == m.replace(" ", "").upper() for m in master_keys)
         if not is_master:
@@ -674,13 +778,16 @@ def get_active_watchlist(
     """
     Retrieves all active watched reference cards for a browser session or user.
     """
-    from app.auth import extract_candidate_keys, get_current_master_keys
+    from app.auth import extract_candidate_keys, get_current_master_keys, is_demo_passcode
     from sqlalchemy import func
 
     user = None
     candidates = extract_candidate_keys(x_passcode, passcode, None)
     if candidates:
         cand = candidates[0].replace(" ", "").upper()
+        if is_demo_passcode(cand):
+            return WatchlistBatchPollResponse(items=[], total_pending=0, total_matched=0)
+
         master_keys = get_current_master_keys()
         is_master = any(cand == m.replace(" ", "").upper() for m in master_keys)
         if not is_master:
@@ -709,6 +816,9 @@ def dismiss_watch_card(
     """
     Dismisses / removes a watched card from the user's live monitoring screen.
     """
+    if payload.watch_id and payload.watch_id >= 9000:
+        return {"success": True, "message": "Watchlist card dismissed."}
+
     success = dismiss_watched_reference(
         db=db,
         watch_id=payload.watch_id,
