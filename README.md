@@ -1,6 +1,6 @@
 # Motaaked (متأكد) — Real-Time InstaPay Transactions Verification Through Official Bank SMS
 
-[![Automated Tests](https://img.shields.io/badge/tests-182%20passed-brightgreen.svg)](tests/)
+[![Automated Tests](https://img.shields.io/badge/tests-201%20passed-brightgreen.svg)](tests/)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED.svg?logo=docker&logoColor=white)](docker-compose.yml)
 [![Python](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
