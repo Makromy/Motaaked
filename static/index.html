@@ -1675,9 +1675,10 @@
             type="button"
             onclick="populateDemoSearchRef()" 
             class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs transition shadow-md shadow-emerald-600/30 flex items-center gap-1.5 cursor-pointer"
+            title="Test 30-second live pending & auto-match simulation"
           >
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <span id="txt-demo-test-search">Test Search (CIB)</span>
+            <i class="fa-solid fa-stopwatch"></i>
+            <span id="txt-demo-test-search">⏱️ 30 Sec Test</span>
           </button>
           <button 
             id="btn-demo-exit"
@@ -6418,7 +6419,7 @@
         demoRibbonTitle: "🎮 Live Demo Sandbox Mode (Zero-Trust Simulation)",
         demoRibbonBadge: "SYNTHETIC AIR-GAP",
         demoRibbonDesc: "You are exploring the portal with synthetic Egyptian bank transfers (CIB, NBE, HSBC, QNB, AlexBank, AAIB). Database writes and live credit deductions are disabled.",
-        demoTestSearchBtn: "Test Search (CIB)",
+        demoTestSearchBtn: "⏱️ 30 Sec Test",
         demoExitBtn: "Exit Demo",
         demoMerchantName: "Demo Merchant (Sandbox)",
         demoBadgeText: "DEMO",
@@ -6967,7 +6968,7 @@
         demoRibbonTitle: "🎮 وضع التجربة الحية المعزول (محاكاة بنكية بدون تأثير على البيانات)",
         demoRibbonBadge: "بيئة معزولة 100%",
         demoRibbonDesc: "أنت الآن تستكشف المنظومة عبر إشعارات بنكية تجريبية للبنوك المصرية (CIB، الأهلي المصري، HSBC، QNB، بنك الإسكندرية، AAIB). عمليات التعديل وخصم الرصيد معطلة.",
-        demoTestSearchBtn: "تجربة استعلام (CIB)",
+        demoTestSearchBtn: "⏱️ تجربة الانتظار (30 ثانية)",
         demoExitBtn: "إنهاء التجربة",
         demoMerchantName: "تاجر تجريبي (Sandbox)",
         demoBadgeText: "تجريبي",
@@ -8791,11 +8792,12 @@ setTxt("lang-toggle-text", t.langBtn);
       switchTab('tracker');
       const inp = document.getElementById("input-search-ref");
       if (inp) {
-        inp.value = "24100200101";
+        inp.value = "bfcf3886";
         inp.focus();
       }
       const fakeEvent = { preventDefault: () => {} };
       handleSearchAndWatch(fakeEvent);
+      showToast(currentLang === 'ar' ? '⏱️ تم إدراج المرجع التجريبي (bfcf3886) في قائمة الانتظار للمطابقة التلقائية بعد 30 ثانية' : '⏱️ Demo reference (bfcf3886) added to watchlist with 30s live auto-match simulation', 'info');
     }
 
     function logoutUser() {
@@ -10050,48 +10052,49 @@ setTxt("lang-toggle-text", t.langBtn);
         const countdownStr = `${mins}m ${secs.toString().padStart(2, '0')}s`;
         const credit = w.matched_credit;
 
-        return `
-          <div class="border ${borderClass} rounded-2xl p-4 shadow-xl transition relative flex flex-col justify-between space-y-3">
-            
-            <div class="flex items-start justify-between">
-              <div>
-                <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500">Ref ID</span>
-                <div class="font-mono font-bold text-white text-base tracking-wide">${w.reference_id}</div>
-              </div>
-              <div class="flex items-center gap-2">
-                ${statusBadge}
-                <button onclick="dismissWatchCard(${w.id})" title="Dismiss" class="text-slate-500 hover:text-slate-300 transition text-sm p-1">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-              </div>
-            </div>
+                const progressPct = w.seconds_remaining <= 60 ? Math.min(100, Math.max(5, (w.seconds_remaining / 30) * 100)) : Math.min(100, Math.max(5, (w.seconds_remaining / 1800) * 100));
+                return `
+                  <div class="border ${borderClass} rounded-2xl p-4 shadow-xl transition relative flex flex-col justify-between space-y-3">
+                    
+                    <div class="flex items-start justify-between">
+                      <div>
+                        <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500">Ref ID</span>
+                        <div class="font-mono font-bold text-white text-base tracking-wide">${w.reference_id}</div>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        ${statusBadge}
+                        <button onclick="dismissWatchCard(${w.id})" title="Dismiss" class="text-slate-500 hover:text-slate-300 transition text-sm p-1">
+                          <i class="fa-solid fa-xmark"></i>
+                        </button>
+                      </div>
+                    </div>
 
-            ${isMatched && credit ? `
-              <div class="pt-2 border-t border-emerald-900/50 space-y-1">
-                <div class="text-xl font-black text-emerald-400">
-                  ${credit.amount.toFixed(2)} <span class="text-xs font-semibold">EGP</span>
-                </div>
-                <div class="text-xs text-slate-400 flex items-center justify-between font-mono">
-                  <span>From: <strong class="text-slate-200 font-sans">${credit.sender_name || 'N/A'}</strong></span>
-                  <span>Acct: ***${credit.account_ending || '----'}</span>
-                </div>
-              </div>
-            ` : `
-              <div class="space-y-1.5 pt-1">
-                <div class="flex items-center justify-between text-xs text-slate-400">
-                  <span class="flex items-center gap-1.5">
-                    <i class="fa-solid fa-clock text-amber-400"></i>
-                    <span>Timeout Window</span>
-                  </span>
-                  <span class="font-mono font-bold ${w.seconds_remaining < 300 ? 'text-red-400' : 'text-slate-200'}">${countdownStr}</span>
-                </div>
-                <div class="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
-                  <div class="bg-amber-400 h-full rounded-full transition-all duration-1000" style="width: ${(w.seconds_remaining / 1800) * 100}%"></div>
-                </div>
-              </div>
-            `}
-          </div>
-        `;
+                    ${isMatched && credit ? `
+                      <div class="pt-2 border-t border-emerald-900/50 space-y-1">
+                        <div class="text-xl font-black text-emerald-400">
+                          ${credit.amount.toFixed(2)} <span class="text-xs font-semibold">EGP</span>
+                        </div>
+                        <div class="text-xs text-slate-400 flex items-center justify-between font-mono">
+                          <span>From: <strong class="text-slate-200 font-sans">${credit.sender_name || 'N/A'}</strong></span>
+                          <span>Acct: ***${credit.account_ending || '----'}</span>
+                        </div>
+                      </div>
+                    ` : `
+                      <div class="space-y-1.5 pt-1">
+                        <div class="flex items-center justify-between text-xs text-slate-400">
+                          <span class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-clock text-amber-400"></i>
+                            <span>${w.seconds_remaining <= 60 ? 'Live Simulation Window' : 'Timeout Window'}</span>
+                          </span>
+                          <span class="font-mono font-bold ${w.seconds_remaining < 300 ? 'text-amber-300' : 'text-slate-200'}">${countdownStr}</span>
+                        </div>
+                        <div class="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
+                          <div class="bg-amber-400 h-full rounded-full transition-all duration-1000" style="width: ${progressPct}%"></div>
+                        </div>
+                      </div>
+                    `}
+                  </div>
+                `;
       }).join("");
     }
 

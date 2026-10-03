@@ -156,6 +156,235 @@ def get_demo_user_profile(passcode: Optional[str] = None) -> UserProfileResponse
     )
 
 
+# In-Memory Dynamic Simulated Watchlist Storage
+DEMO_WATCHES: Dict[str, Dict[str, Any]] = {}
+_DEMO_WATCH_ID_COUNTER = 9800
+
+
+def register_demo_watch(
+    session_id: str,
+    reference_id: str,
+    timeout_minutes: int = 30,
+    simulation_seconds: int = 30,
+) -> Dict[str, Any]:
+    """
+    Registers a synthetic reference in the in-memory demo watchlist.
+    If the reference is a known static initial transaction (e.g. 24100200101),
+    it matches immediately.
+    If the reference is a custom manual reference (e.g. bfcf3886) or test run,
+    it enters PENDING status with a live simulation countdown (default 30 seconds)
+    and transitions to MATCHED upon polling after 30 seconds.
+    """
+    global _DEMO_WATCH_ID_COUNTER
+    clean_ref = reference_id.strip()
+    key = f"{session_id}:{clean_ref}"
+    now = utc_now()
+
+    # Check if reference is in initial static synthetic list
+    static_matches = [
+        tx for tx in SYNTHETIC_TRANSACTIONS
+        if clean_ref == tx["reference_id"]
+    ]
+
+    # Pre-existing static transactions match immediately
+    if static_matches and clean_ref.startswith("2410020010"):
+        matched_item = static_matches[0]
+        is_claimed = (matched_item["status"] == "CLAIMED")
+        simulated_time = now - timedelta(minutes=matched_item["minutes_ago"])
+        credit_data = {
+            "id": matched_item["id"],
+            "user_id": 999999,
+            "bank_code": matched_item["bank_code"],
+            "bank_name": matched_item["bank_name"],
+            "amount": matched_item["amount"],
+            "currency": matched_item["currency"],
+            "reference_id": matched_item["reference_id"],
+            "sender_name": matched_item["sender_name"],
+            "account_ending": matched_item["account_ending"],
+            "raw_sms": matched_item["raw_sms"],
+            "raw_sms_en": matched_item.get("raw_sms_en", ""),
+            "status": matched_item["status"],
+            "is_matched": is_claimed,
+            "received_at": simulated_time,
+            "matched_at": (simulated_time + timedelta(seconds=12)) if is_claimed else now,
+            "matched_order_id": None,
+            "is_sandbox_demo": True,
+        }
+        res = {
+            "id": matched_item["id"],
+            "session_id": session_id,
+            "reference_id": matched_item["reference_id"],
+            "status": "MATCHED",
+            "created_at": now,
+            "expires_at": now + timedelta(minutes=timeout_minutes),
+            "matched_at": now,
+            "matched_credit": credit_data,
+            "seconds_remaining": 0,
+            "credits_remaining": 250,
+            "already_matched": is_claimed,
+            "is_sandbox_demo": True,
+        }
+        DEMO_WATCHES[key] = res
+        return res
+
+    # Otherwise (e.g. bfcf3886, or any manual reference, or 30s test simulation):
+    _DEMO_WATCH_ID_COUNTER += 1
+    watch_id = _DEMO_WATCH_ID_COUNTER
+
+    # Pick bank & details deterministically based on reference
+    ref_hash = sum(ord(c) for c in clean_ref)
+    banks = [
+        ("CIB", "CIB", 750.00, "Haitham Refaat", "4812"),
+        ("NBE", "NBE (Al Ahli)", 1250.00, "Sara Ahmed", "9934"),
+        ("HSBC", "HSBC Egypt", 320.00, "Mohamed Mahmoud", "7719"),
+        ("QNB", "QNB Alahli", 890.00, "Omar Khaled", "1045"),
+        ("ALEX", "AlexBank", 175.00, "Mona Ali", "6201"),
+        ("AAIB", "AAIB", 2100.00, "Tarek Hassan", "3388"),
+    ]
+    bank_info = banks[ref_hash % len(banks)]
+
+    watch_record = {
+        "id": watch_id,
+        "session_id": session_id,
+        "reference_id": clean_ref,
+        "status": "PENDING",
+        "created_at": now,
+        "expires_at": now + timedelta(minutes=timeout_minutes),
+        "simulation_seconds": simulation_seconds,
+        "bank_code": bank_info[0],
+        "bank_name": bank_info[1],
+        "amount": bank_info[2],
+        "sender_name": bank_info[3],
+        "account_ending": bank_info[4],
+        "matched_at": None,
+        "matched_credit": None,
+        "seconds_remaining": simulation_seconds,
+        "credits_remaining": 250,
+        "already_matched": False,
+        "is_sandbox_demo": True,
+    }
+    DEMO_WATCHES[key] = watch_record
+    return watch_record
+
+
+def poll_demo_watchlist(
+    session_id: Optional[str] = None,
+    reference_ids: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """
+    Polls active demo watchlist items. Automatically transitions PENDING watches
+    to MATCHED once the simulation countdown (e.g. 30s) elapses.
+    """
+    now = utc_now()
+    items = []
+    total_pending = 0
+    total_matched = 0
+
+    target_keys = list(DEMO_WATCHES.keys())
+    for key in target_keys:
+        watch = DEMO_WATCHES.get(key)
+        if not watch:
+            continue
+        if session_id and watch.get("session_id") != session_id:
+            continue
+        if reference_ids and watch.get("reference_id") not in reference_ids:
+            continue
+
+        if watch["status"] == "PENDING":
+            elapsed = (now - watch["created_at"]).total_seconds()
+            sim_sec = watch.get("simulation_seconds", 30)
+            if elapsed >= sim_sec:
+                # Transition to MATCHED!
+                watch["status"] = "MATCHED"
+                matched_time = watch["created_at"] + timedelta(seconds=sim_sec)
+                watch["matched_at"] = matched_time
+                watch["seconds_remaining"] = 0
+
+                credit_data = {
+                    "id": watch["id"],
+                    "user_id": 999999,
+                    "bank_code": watch["bank_code"],
+                    "bank_name": watch["bank_name"],
+                    "amount": watch["amount"],
+                    "currency": "EGP",
+                    "reference_id": watch["reference_id"],
+                    "sender_name": watch["sender_name"],
+                    "account_ending": watch["account_ending"],
+                    "raw_sms": f"تم تحويل مبلغ {watch['amount']:.2f} جم إلى حسابكم طرف {watch['bank_code']} من حساب {watch['sender_name']} عبر إنستاباي. مرجع: {watch['reference_id']}",
+                    "raw_sms_en": f"{watch['bank_code']}: You have received EGP {watch['amount']:.2f} from {watch['sender_name']} via InstaPay. Ref: {watch['reference_id']}",
+                    "status": "UNCLAIMED",
+                    "is_matched": True,
+                    "received_at": matched_time,
+                    "matched_at": matched_time,
+                    "matched_order_id": None,
+                    "is_sandbox_demo": True,
+                }
+                watch["matched_credit"] = credit_data
+                total_matched += 1
+            else:
+                watch["seconds_remaining"] = max(1, int(sim_sec - elapsed))
+                total_pending += 1
+        elif watch["status"] == "MATCHED":
+            watch["seconds_remaining"] = 0
+            total_matched += 1
+
+        items.append(watch)
+
+    # If specific reference_ids were requested and not found in DEMO_WATCHES,
+    # resolve them against static synthetic transactions
+    if reference_ids:
+        found_refs = {w["reference_id"] for w in items}
+        for ref in reference_ids:
+            if ref not in found_refs:
+                static_res = search_demo_transactions(reference_id=ref)
+                if static_res:
+                    s_item = static_res[0]
+                    items.append({
+                        "id": s_item["id"],
+                        "reference_id": s_item["reference_id"],
+                        "status": "MATCHED",
+                        "created_at": now - timedelta(seconds=10),
+                        "expires_at": now + timedelta(minutes=30),
+                        "matched_at": s_item.get("matched_at") or now,
+                        "matched_credit": s_item,
+                        "seconds_remaining": 0,
+                        "credits_remaining": 250,
+                        "already_matched": s_item.get("is_matched", False),
+                        "is_sandbox_demo": True,
+                    })
+                    total_matched += 1
+                else:
+                    items.append({
+                        "id": 9999,
+                        "reference_id": ref,
+                        "status": "PENDING",
+                        "created_at": now,
+                        "expires_at": now + timedelta(minutes=30),
+                        "matched_at": None,
+                        "matched_credit": None,
+                        "seconds_remaining": 30,
+                        "credits_remaining": 250,
+                        "already_matched": False,
+                        "is_sandbox_demo": True,
+                    })
+                    total_pending += 1
+
+    return {
+        "items": items,
+        "total_pending": total_pending,
+        "total_matched": total_matched,
+    }
+
+
+def dismiss_demo_watch(session_id: Optional[str], watch_id: int) -> bool:
+    """Removes a watched card from in-memory demo watches."""
+    for key, val in list(DEMO_WATCHES.items()):
+        if val.get("id") == watch_id or (session_id and val.get("session_id") == session_id and val.get("id") == watch_id):
+            del DEMO_WATCHES[key]
+            return True
+    return False
+
+
 def search_demo_transactions(
     reference_id: Optional[str] = None,
     amount: Optional[float] = None,
@@ -165,10 +394,12 @@ def search_demo_transactions(
     """
     In-memory synthetic transaction search for Demo Sandbox mode.
     Returns matched synthetic records with zero database queries.
+    Includes matched simulated watches.
     """
     results = []
     clean_ref = reference_id.strip() if reference_id else None
 
+    # First search static transactions
     for tx in SYNTHETIC_TRANSACTIONS:
         # Match by Reference ID (exact or suffix match)
         if clean_ref:
@@ -213,6 +444,14 @@ def search_demo_transactions(
             "is_sandbox_demo": True,
         })
 
+    # Also search dynamic DEMO_WATCHES if they matched
+    if clean_ref:
+        for val in DEMO_WATCHES.values():
+            if val.get("reference_id") == clean_ref and val.get("status") == "MATCHED" and val.get("matched_credit"):
+                mc = val["matched_credit"]
+                if not any(r["reference_id"] == clean_ref for r in results):
+                    results.append(mc)
+
     return results
 
 
@@ -220,6 +459,31 @@ def get_demo_livestream_feed() -> List[Dict[str, Any]]:
     """Returns simulated LiveStream feed transactions with dynamic timestamps."""
     feed = []
     now = utc_now()
+
+    # Prepend any newly MATCHED simulated watches
+    for val in DEMO_WATCHES.values():
+        if val.get("status") == "MATCHED" and val.get("matched_credit"):
+            mc = val["matched_credit"]
+            feed.append({
+                "id": mc["id"],
+                "user_id": 999999,
+                "amount": mc["amount"],
+                "currency": mc["currency"],
+                "reference_id": mc["reference_id"],
+                "sender_name": mc["sender_name"],
+                "account_ending": mc["account_ending"],
+                "bank_code": mc["bank_code"],
+                "bank_name": mc["bank_name"],
+                "raw_sms": mc["raw_sms"],
+                "status": mc["status"],
+                "is_matched": mc["is_matched"],
+                "matched_at": mc["matched_at"],
+                "received_at": mc["received_at"],
+                "matched_order_id": None,
+                "timestamp": mc["received_at"].strftime("%Y-%m-%d %H:%M:%S") if isinstance(mc["received_at"], datetime) else str(mc["received_at"]),
+                "is_sandbox_demo": True,
+            })
+
     for tx in SYNTHETIC_TRANSACTIONS:
         tx_time = now - timedelta(minutes=tx["minutes_ago"])
         is_claimed = (tx["status"] == "CLAIMED")
@@ -258,4 +522,5 @@ def get_demo_telemetry() -> Dict[str, Any]:
         "last_seen_at": now.isoformat(),
         "is_sandbox_demo": True,
     }
+
 

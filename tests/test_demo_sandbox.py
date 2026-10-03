@@ -212,6 +212,93 @@ def test_demo_watchlist_search_and_poll(client):
     assert poll_data["total_pending"] == 1
 
 
+def test_demo_manual_reference_30s_simulation_pending_to_matched(client):
+    """
+    Verifies that entering a manual reference (like 'bfcf3886') enters PENDING status with 30s countdown,
+    and automatically transitions to MATCHED upon polling after 30 seconds.
+    """
+    from datetime import timedelta
+    from app.demo_sandbox import DEMO_WATCHES, utc_now
+
+    session_id = "sess_demo_manual_test"
+    ref_id = "bfcf3886"
+
+    # 1. Register manual reference in watchlist
+    res_watch = client.post(
+        "/v1/watchlist/watch",
+        headers={"X-Passcode": "DEMO-SANDBOX-2026"},
+        json={
+            "reference_id": ref_id,
+            "session_id": session_id,
+            "timeout_minutes": 30
+        }
+    )
+    assert res_watch.status_code == 201
+    watch_data = res_watch.json()
+    assert watch_data["status"] == "PENDING"
+    assert watch_data["reference_id"] == ref_id
+    assert watch_data["seconds_remaining"] == 30
+    assert watch_data["matched_credit"] is None
+
+    # 2. Poll immediately -> must still be PENDING
+    res_poll_1 = client.post(
+        "/v1/watchlist/poll",
+        headers={"X-Passcode": "DEMO-SANDBOX-2026"},
+        json={
+            "session_id": session_id,
+            "reference_ids": [ref_id]
+        }
+    )
+    assert res_poll_1.status_code == 200
+    poll_1_data = res_poll_1.json()
+    assert poll_1_data["total_pending"] == 1
+    assert poll_1_data["items"][0]["status"] == "PENDING"
+
+    # 3. Simulate 31 seconds elapsed
+    key = f"{session_id}:{ref_id}"
+    assert key in DEMO_WATCHES
+    DEMO_WATCHES[key]["created_at"] = utc_now() - timedelta(seconds=32)
+
+    # 4. Poll after 30 seconds elapsed -> must transition to MATCHED!
+    res_poll_2 = client.post(
+        "/v1/watchlist/poll",
+        headers={"X-Passcode": "DEMO-SANDBOX-2026"},
+        json={
+            "session_id": session_id,
+            "reference_ids": [ref_id]
+        }
+    )
+    assert res_poll_2.status_code == 200
+    poll_2_data = res_poll_2.json()
+    assert poll_2_data["total_matched"] == 1
+    matched_item = poll_2_data["items"][0]
+    assert matched_item["status"] == "MATCHED"
+    assert matched_item["seconds_remaining"] == 0
+    assert matched_item["matched_credit"] is not None
+    assert matched_item["matched_credit"]["reference_id"] == ref_id
+    assert matched_item["matched_credit"]["amount"] > 0
+    assert matched_item["matched_credit"]["sender_name"] is not None
+    assert matched_item["matched_credit"]["account_ending"] is not None
+
+    # 5. GET /v1/watchlist/active returns the matched card
+    res_active = client.get(
+        f"/v1/watchlist/active?session_id={session_id}",
+        headers={"X-Passcode": "DEMO-SANDBOX-2026"}
+    )
+    assert res_active.status_code == 200
+    assert res_active.json()["total_matched"] == 1
+
+    # 6. Dismiss card
+    watch_id = matched_item["id"]
+    res_dismiss = client.post(
+        "/v1/watchlist/dismiss",
+        headers={"X-Passcode": "DEMO-SANDBOX-2026"},
+        json={"watch_id": watch_id, "session_id": session_id}
+    )
+    assert res_dismiss.status_code == 200
+    assert key not in DEMO_WATCHES
+
+
 def test_demo_mutations_strictly_blocked_with_403(client):
     """
     Zero-Trust Security Test:
