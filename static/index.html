@@ -1435,7 +1435,25 @@
               <span id="txt-btn-unlock">Unlock Dashboard</span>
               <i class="fa-solid fa-arrow-right"></i>
             </button>
+
+            <!-- One-Click Instant Sandbox Demo Mode -->
+            <div class="relative flex py-1 items-center">
+              <div class="flex-grow border-t border-slate-800"></div>
+              <span class="flex-shrink mx-3 text-[10px] sm:text-[11px] text-slate-500 font-bold uppercase tracking-wider" id="txt-or-demo">or explore instant</span>
+              <div class="flex-grow border-t border-slate-800"></div>
+            </div>
+
+            <button 
+              type="button" 
+              id="btn-try-live-demo"
+              onclick="launchDemoSandbox()"
+              class="w-full py-2.5 bg-gradient-to-r from-emerald-600/90 via-teal-600/90 to-cyan-600/90 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-md shadow-emerald-950/40 transition duration-200 text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer border border-emerald-500/30"
+            >
+              <i class="fa-solid fa-gamepad text-emerald-300"></i>
+              <span id="txt-btn-demo">🎮 Try Live Demo (Instant Sandbox)</span>
+            </button>
           </form>
+
 
           <!-- Forgot Passcode Form (Hidden by default) -->
           <form id="forgot-passcode-form" class="space-y-4 hidden" onsubmit="handleForgotPasscode(event)">
@@ -1586,6 +1604,42 @@
 
     <!-- Main Navigation Tabs -->
     <div id="app-content" class="space-y-6 opacity-30 pointer-events-none">
+
+      <!-- Demo Sandbox Notification Ribbon -->
+      <div id="demo-mode-ribbon" class="hidden bg-gradient-to-r from-emerald-950/90 via-slate-900 to-teal-950/90 border border-emerald-500/50 rounded-2xl p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
+        <div class="flex items-center gap-3.5 min-w-0">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg shrink-0 border border-emerald-500/40">
+            <i class="fa-solid fa-gamepad animate-pulse"></i>
+          </div>
+          <div class="space-y-0.5 min-w-0">
+            <div class="font-bold text-white flex flex-wrap items-center gap-2">
+              <span id="txt-demo-ribbon-title">🎮 Live Demo Sandbox Mode (Zero-Trust Simulation)</span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-wider">Synthetic Air-Gap</span>
+            </div>
+            <p class="text-slate-300 text-xs leading-relaxed" id="txt-demo-ribbon-desc">
+              You are exploring the portal with synthetic Egyptian bank transfers (CIB, NBE, HSBC, QNB, AlexBank, AAIB). Database writes and live credit deductions are disabled.
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+          <button 
+            type="button"
+            onclick="populateDemoSearchRef()" 
+            class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs transition shadow-md shadow-emerald-600/30 flex items-center gap-1.5 cursor-pointer"
+          >
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <span id="txt-demo-test-search">Test Search (CIB)</span>
+          </button>
+          <button 
+            type="button"
+            onclick="logoutUser()" 
+            class="px-3 py-2 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl font-bold text-xs transition border border-slate-700 cursor-pointer"
+          >
+            <i class="fa-solid fa-right-from-bracket mr-1"></i>
+            <span id="txt-demo-exit">Exit Demo</span>
+          </button>
+        </div>
+      </div>
       
       <!-- Tab Buttons (Responsive swipeable bar on mobile) -->
       <div class="flex items-center gap-1.5 sm:gap-2 border-b border-slate-800 pb-2.5 mb-6 sm:mb-8 overflow-x-auto no-scrollbar flex-nowrap sm:flex-wrap">
@@ -8409,6 +8463,17 @@ setTxt("lang-toggle-text", t.langBtn);
           enforceAdminTabState();
           renderUserHeader();
           watchlist = [];
+
+          if (userProfile.role === "demo") {
+            const ribbon = document.getElementById("demo-mode-ribbon");
+            if (ribbon) ribbon.classList.remove("hidden");
+            safeSession.setItem("instapay_shift_token", "demo_shift_token_2026");
+            safeSession.setItem("instapay_cashier_unlocked", "true");
+          } else {
+            const ribbon = document.getElementById("demo-mode-ribbon");
+            if (ribbon) ribbon.classList.add("hidden");
+          }
+
           loadActiveWatchlist();
           initStatementDateLimits();
 
@@ -8636,6 +8701,29 @@ setTxt("lang-toggle-text", t.langBtn);
       await validatePasscodeAndInit(code);
     }
 
+    async function launchDemoSandbox() {
+      const demoPasscode = "DEMO-SANDBOX-2026";
+      const passInput = document.getElementById("input-passcode");
+      if (passInput) {
+        passInput.value = demoPasscode;
+        passInput.classList.remove("masked-passcode");
+        passInput.classList.add("unmasked-passcode");
+      }
+      await validatePasscodeAndInit(demoPasscode);
+    }
+
+    function populateDemoSearchRef() {
+      switchTab('tracker');
+      const inp = document.getElementById("input-search-ref");
+      if (inp) {
+        inp.value = "24100200101";
+        inp.focus();
+      }
+      if (typeof handleSingleSearch === "function") {
+        handleSingleSearch();
+      }
+    }
+
     function logoutUser() {
       safeLocal.removeItem("instapay_passcode");
       safeLocal.removeItem("instapay_session_id");
@@ -8650,6 +8738,10 @@ setTxt("lang-toggle-text", t.langBtn);
       safeSession.removeItem("instapay_cashier_unlocked");
       safeSession.removeItem("instapay_shift_token");
       safeSession.removeItem("instapay_owner_unlocked");
+
+      const ribbon = document.getElementById("demo-mode-ribbon");
+      if (ribbon) ribbon.classList.add("hidden");
+
       // Wipe admin gate input from DOM and hide admin panel content
       const _admGateInp = document.getElementById("input-admin-gate-key");
       if (_admGateInp) { _admGateInp.value = ""; _admGateInp.type = "password"; _admGateInp.setAttribute("readonly", ""); }
@@ -8720,6 +8812,7 @@ setTxt("lang-toggle-text", t.langBtn);
         return;
       }
 
+      const isDemo = (userProfile.role === "demo");
       const expiry = new Date(userProfile.subscription_expires_at);
       const diffDays = Math.max(0, Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24)));
       const creditsLabel = isAr ? "رصيد" : "Credits";
@@ -8732,17 +8825,16 @@ setTxt("lang-toggle-text", t.langBtn);
       const logoutTooltip = isAr ? "تسجيل الخروج / تبديل الحساب" : "Logout / Switch Passcode";
 
       container.innerHTML = `
-        <button onclick="openUserProfileModal()" title="${profileTooltip}" class="flex items-center gap-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 px-2 sm:px-3 py-1.5 rounded-xl text-xs font-mono transition group shrink-0 cursor-pointer">
-          <i class="fa-solid fa-user-gear text-indigo-400 group-hover:rotate-45 transition duration-300 text-xs sm:text-sm"></i>
+        <button onclick="openUserProfileModal()" title="${profileTooltip}" class="flex items-center gap-1.5 bg-slate-950 hover:bg-slate-800 border ${isDemo ? 'border-emerald-500/50' : 'border-slate-800'} px-2 sm:px-3 py-1.5 rounded-xl text-xs font-mono transition group shrink-0 cursor-pointer">
+          <i class="fa-solid ${isDemo ? 'fa-gamepad text-emerald-400' : 'fa-user-gear text-indigo-400'} group-hover:rotate-45 transition duration-300 text-xs sm:text-sm"></i>
           <span class="text-slate-300 font-bold truncate max-w-[75px] sm:max-w-[150px]">${userProfile.name}</span>
-          <span class="text-slate-600 hidden sm:inline">|</span>
-          <span class="text-indigo-400 font-bold hidden sm:inline">${userProfile.passcode}</span>
+          ${isDemo ? '<span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">DEMO</span>' : `<span class="text-slate-600 hidden sm:inline">|</span><span class="text-indigo-400 font-bold hidden sm:inline">${userProfile.passcode}</span>`}
         </button>
 
         <!-- Merged Credits & Pass Validity Button (Opens Wallet Breakdown Modal) -->
-        <button onclick="openWalletBreakdownModal()" title="${combinedTooltip}" class="flex items-center gap-2 sm:gap-2.5 bg-slate-950 hover:bg-slate-900 border border-amber-500/30 hover:border-amber-400/60 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer shrink-0 group">
+        <button onclick="openWalletBreakdownModal()" title="${combinedTooltip}" class="flex items-center gap-2 sm:gap-2.5 bg-slate-950 hover:bg-slate-900 border ${isDemo ? 'border-emerald-500/40' : 'border-amber-500/30'} hover:border-amber-400/60 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer shrink-0 group">
           <div class="flex items-center gap-1 sm:gap-1.5 text-amber-300 group-hover:text-amber-200">
-            <i class="fa-solid fa-coins text-amber-400 text-xs"></i>
+            <i class="fa-solid fa-coins ${isDemo ? 'text-emerald-400' : 'text-amber-400'} text-xs"></i>
             <span>${userProfile.credits_balance} <span class="hidden sm:inline">${creditsLabel}</span></span>
           </div>
           <span class="text-slate-700">|</span>
@@ -8757,6 +8849,7 @@ setTxt("lang-toggle-text", t.langBtn);
         </button>
       `;
     }
+
 
     function openWalletBreakdownModal() {
       if (!userProfile) return;

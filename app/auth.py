@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models import ApiKey, User, utc_now
+from app.demo_sandbox import is_demo_passcode, get_demo_user_profile
 
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 API_KEY_QUERY = APIKeyQuery(name="api_key", auto_error=False)
@@ -277,6 +278,11 @@ async def verify_api_key(
             if secrets.compare_digest(candidate, master_key) or secrets.compare_digest(clean_cand, clean_master):
                 return candidate
 
+    # 1b. Check Demo Sandbox Passcode
+    for candidate in all_candidates:
+        if is_demo_passcode(candidate):
+            return candidate
+
     # 2. Check Database Developer / Forwarder Keys (api_keys table via hash or key)
     for candidate in all_candidates:
         db_key = find_api_key(db, candidate)
@@ -516,6 +522,29 @@ async def get_current_user(
                 created_at=utc_now(),
             )
 
+    # 1b. Allow Demo Sandbox User
+    if is_demo_passcode(raw_passcode):
+        from datetime import timedelta
+        return User(
+            id=999999,
+            name="Demo Merchant (Sandbox)",
+            email="demo@motaaked.com",
+            phone="01000000000",
+            passcode=raw_passcode,
+            role="demo",
+            account_ending="4812",
+            credits_balance=250,
+            free_credits=100,
+            pass_credits=150,
+            subscription_expires_at=utc_now() + timedelta(days=30),
+            is_active=True,
+            cashier_pin="123456",
+            approval_status="APPROVED",
+            ecommerce_enabled=True,
+            created_at=utc_now() - timedelta(days=5),
+            last_active_at=utc_now(),
+        )
+
     # 2. Check Database Users strictly by Passcode (dual-mode)
     user = find_user_by_passcode(db, raw_passcode)
 
@@ -593,6 +622,29 @@ async def get_current_user_allow_expired(
                 created_at=utc_now(),
             )
 
+    # 1b. Allow Demo Sandbox User
+    if is_demo_passcode(raw_passcode):
+        from datetime import timedelta
+        return User(
+            id=999999,
+            name="Demo Merchant (Sandbox)",
+            email="demo@motaaked.com",
+            phone="01000000000",
+            passcode=raw_passcode,
+            role="demo",
+            account_ending="4812",
+            credits_balance=250,
+            free_credits=100,
+            pass_credits=150,
+            subscription_expires_at=utc_now() + timedelta(days=30),
+            is_active=True,
+            cashier_pin="123456",
+            approval_status="APPROVED",
+            ecommerce_enabled=True,
+            created_at=utc_now() - timedelta(days=5),
+            last_active_at=utc_now(),
+        )
+
     user = find_user_by_passcode(db, raw_passcode)
     if not user:
         api_k = find_api_key(db, raw_passcode)
@@ -651,6 +703,31 @@ async def get_authenticated_actor(
                     admin_u = User(id=0, name="Super Admin", passcode="ADMIN", role="admin", is_active=True)
                 return {"type": "admin", "actor": "Super Admin", "user": admin_u, "is_admin": True}
 
+    # 1b. Check Demo Sandbox Passcode
+    for candidate in all_candidates:
+        if is_demo_passcode(candidate):
+            from datetime import timedelta
+            demo_u = User(
+                id=999999,
+                name="Demo Merchant (Sandbox)",
+                email="demo@motaaked.com",
+                phone="01000000000",
+                passcode=candidate,
+                role="demo",
+                account_ending="4812",
+                credits_balance=250,
+                free_credits=100,
+                pass_credits=150,
+                subscription_expires_at=utc_now() + timedelta(days=30),
+                is_active=True,
+                cashier_pin="123456",
+                approval_status="APPROVED",
+                ecommerce_enabled=True,
+                created_at=utc_now() - timedelta(days=5),
+                last_active_at=utc_now(),
+            )
+            return {"type": "demo", "actor": "Demo Merchant (Sandbox)", "user": demo_u, "is_admin": False}
+
     # 2. Check Database API Keys (api_keys table)
     for candidate in all_candidates:
         db_key = find_api_key(db, candidate)
@@ -698,3 +775,4 @@ async def get_authenticated_actor(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid or deactivated authentication credentials.",
     )
+

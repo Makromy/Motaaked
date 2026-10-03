@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     # CORS allowed origins — comma-separated list or "*" for all. Default "*" preserves current behavior.
     ALLOWED_ORIGINS: str = Field("*", validation_alias=AliasChoices("ALLOWED_ORIGINS", "CORS_ORIGINS", "CORS_ALLOWED_ORIGINS"))
 
+    # Demo Mode Sandbox Configuration
+    DEMO_MODE_ENABLED: bool = Field(True, validation_alias=AliasChoices("DEMO_MODE_ENABLED", "ENABLE_DEMO_MODE"))
+    DEMO_PASSCODE: str = Field("DEMO-SANDBOX-2026", validation_alias=AliasChoices("DEMO_PASSCODE", "DEMO_KEY"))
+
     # SMTP Email Configuration (Supports both SMTP_* and MAIL_* aliases)
     SMTP_HOST: str = Field("", validation_alias=AliasChoices("SMTP_HOST", "MAIL_HOST", "SMTP_SERVER"))
     SMTP_PORT: int = Field(587, validation_alias=AliasChoices("SMTP_PORT", "MAIL_PORT"))

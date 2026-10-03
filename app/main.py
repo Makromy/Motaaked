@@ -15,6 +15,13 @@ from sqlalchemy import func
 
 from app.config import settings
 from app.database import get_db, init_db
+from app.demo_sandbox import (
+    is_demo_passcode,
+    get_demo_user_profile,
+    search_demo_transactions,
+    get_demo_livestream_feed,
+    get_demo_telemetry,
+)
 from app.auth import (
     verify_api_key,
     verify_admin_key,
@@ -101,6 +108,8 @@ from app.models import (
     PendingOrder,
     ForwarderHeartbeatRequest,
     ForwarderHeartbeatResponse,
+    ForwarderTelemetryRead,
+    LiveStreamTransactionItem,
     LiveStreamFeedResponse,
     LiveStreamMarkReadRequest,
     AdminForwarderHealthResponse,
@@ -790,6 +799,29 @@ def resolve_merchant_from_key(db: Session, auth_key: Optional[str]) -> Optional[
                 super_admin = User(id=0, name="Super Admin", passcode="ADMIN", role="admin", is_active=True)
             return super_admin
 
+    # 0b. Check Demo Sandbox Passcode
+    if is_demo_passcode(clean):
+        from datetime import timedelta
+        return User(
+            id=999999,
+            name="Demo Merchant (Sandbox)",
+            email="demo@motaaked.com",
+            phone="01000000000",
+            passcode=clean,
+            role="demo",
+            account_ending="4812",
+            credits_balance=250,
+            free_credits=100,
+            pass_credits=150,
+            subscription_expires_at=utc_now() + timedelta(days=30),
+            is_active=True,
+            cashier_pin="123456",
+            approval_status="APPROVED",
+            ecommerce_enabled=True,
+            created_at=utc_now() - timedelta(days=5),
+            last_active_at=utc_now(),
+        )
+
     # 1. Match User.passcode (dual-mode)
     u = find_user_by_passcode(db, clean)
     if u:
@@ -1010,6 +1042,8 @@ def format_user_profile_response(user: User, db: Session, unmasked: bool = False
     import math
     from datetime import datetime, timezone, timedelta
     from app.services import get_system_settings
+    if getattr(user, "role", "") == "demo" or user.id == 999999:
+        return get_demo_user_profile(user.passcode)
     check_and_refresh_monthly_free_credits(db, user)
     fwd_key = get_user_forwarder_key(user, db) if user.id != 0 else (settings.MASTER_API_KEY or "instapay_secret_master_key_2026")
     now = utc_now()
@@ -1169,6 +1203,11 @@ def passcode_login(
                 is_active=True,
                 is_subscription_valid=True,
             )
+
+    # 1b. Check Demo Sandbox Passcode
+    if is_demo_passcode(raw_code):
+        login_rate_limiter.record_success(client_ip)
+        return get_demo_user_profile(raw_code)
 
     # 2. Check Database Users strictly by Passcode (dual-mode: plaintext & salted PBKDF2 hash)
     user = find_user_by_passcode(db, raw_code)
@@ -1364,6 +1403,14 @@ def verify_owner_key_endpoint(
     Tier 3 Master Security Gate:
     Verifies merchant's Forwarder API Key or Super Admin Key before unlocking the Profile modal and revealing Cashier PIN.
     """
+    if current_user.role == "demo" or current_user.id == 999999:
+        unmasked_profile = get_demo_user_profile(current_user.passcode)
+        return VerifyOwnerKeyResponse(
+            success=True,
+            user_profile=unmasked_profile,
+            message="Demo Sandbox Owner verified successfully. Full profile unlocked.",
+        )
+
     input_key = payload.owner_key.strip()
     fwd_key = get_user_forwarder_key(current_user, db) if current_user.id != 0 else (settings.MASTER_API_KEY or "instapay_secret_master_key_2026")
     master_keys = get_current_master_keys()
@@ -1397,6 +1444,12 @@ def update_cashier_pin_endpoint(
     Allows the merchant owner to set or update the Cashier / Vault PIN for their staff.
     Requires owner's Forwarder API Key.
     """
+    if getattr(current_user, "role", "") == "demo" or current_user.id == 999999:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="State modification is disabled in Demo Sandbox Mode.",
+        )
+
     input_key = payload.owner_key.strip()
     fwd_key = get_user_forwarder_key(current_user, db) if current_user.id != 0 else (settings.MASTER_API_KEY or "instapay_secret_master_key_2026")
     master_keys = get_current_master_keys()
@@ -1445,6 +1498,14 @@ def verify_cashier_pin_endpoint(
     Login Passcodes (PASS-XXXX-XXXX) are explicitly rejected to preserve shift role isolation.
     Protected by CashierPinRateLimiter to prevent brute-force attacks.
     """
+    if current_user.role == "demo" or current_user.id == 999999:
+        shift_token = create_shift_token(current_user.id)
+        return VerifyCashierPinResponse(
+            success=True,
+            shift_token=shift_token,
+            message="Demo Sandbox Cashier PIN verified successfully.",
+        )
+
     client_ip = get_client_ip(request)
     rate_key = f"cashier_{current_user.id}_{client_ip}"
     blocked, retry_after = cashier_pin_limiter.is_blocked(rate_key)
@@ -1506,6 +1567,7 @@ def verify_cashier_pin_endpoint(
     cashier_pin_limiter.record_success(rate_key)
     shift_token = create_shift_token(current_user.id)
     return VerifyCashierPinResponse(
+
         success=True,
         message="Cashier PIN verified successfully.",
         shift_token=shift_token,
@@ -1669,6 +1731,39 @@ def search_reference(
     Deducts 1 search credit for Passcode users (Admin bypasses deduction).
     Returns whether transaction is newly verified or already matched previously.
     """
+    if actor_info.get("type") == "demo" or (actor_info.get("user") and getattr(actor_info.get("user"), "role", "") == "demo"):
+        demo_results = search_demo_transactions(reference_id=payload.reference_id)
+        if demo_results:
+            first = demo_results[0]
+            tx_item = TransactionItem(
+                id=first["id"],
+                amount=first["amount"],
+                currency=first["currency"],
+                reference_id=first["reference_id"],
+                sender_name=first["sender_name"],
+                account_ending=first["account_ending"],
+                status=first["status"],
+                is_matched=first["is_matched"],
+                matched_at=first["matched_at"],
+                received_at=first["received_at"],
+                matched_order_id=None,
+            )
+            return ReferenceSearchResponse(
+                found=True,
+                credit=tx_item,
+                credits_remaining=250,
+                already_matched=(first["status"] == "CLAIMED"),
+                message="[Demo Sandbox] Synthetic bank transaction verified successfully.",
+            )
+        else:
+            return ReferenceSearchResponse(
+                found=False,
+                credit=None,
+                credits_remaining=250,
+                already_matched=False,
+                message=f"[Demo Sandbox] No synthetic transaction found with reference ID '{payload.reference_id}'. (Try 24100200101 for CIB, 24100200102 for NBE, or 24100200103 for HSBC)",
+            )
+
     found, credit, remaining_credits, already_matched = search_single_reference(
         db=db,
         actor_info=actor_info,
@@ -1770,6 +1865,13 @@ def unlock_transactions_vault(
     - If incorrect: rejects with 403 Forbidden without deducting any credits.
     - If correct: deducts 10 credits once to unlock the transaction vault for the active session.
     """
+    if current_user.role == "demo" or current_user.id == 999999:
+        return TransactionsUnlockResponse(
+            success=True,
+            credits_remaining=250,
+            message="[Demo Sandbox] Verification successful. Transaction vault unlocked.",
+        )
+
     client_ip = get_client_ip(request)
     rate_key = f"{client_ip}_{current_user.id if current_user else 'anon'}"
 
@@ -1867,6 +1969,35 @@ def filter_transactions(
     Queries transactions within date boundaries and filters with pagination.
     """
     user = actor_info.get("user")
+    if actor_info.get("type") == "demo" or (user and getattr(user, "role", "") == "demo"):
+        demo_results = search_demo_transactions(
+            sender=sender,
+            amount=min_amount,
+        )
+        items = [
+            TransactionItem(
+                id=d["id"],
+                amount=d["amount"],
+                currency=d["currency"],
+                reference_id=d["reference_id"],
+                sender_name=d["sender_name"],
+                account_ending=d["account_ending"],
+                status=d["status"],
+                is_matched=d["is_matched"],
+                matched_at=d["matched_at"],
+                received_at=d["received_at"],
+                matched_order_id=None,
+            )
+            for d in demo_results
+        ]
+        return TransactionListResponse(
+            total=len(items),
+            page=1,
+            page_size=page_size,
+            credits_remaining=250,
+            items=items,
+        )
+
     total, items = query_filtered_transactions(
         db=db,
         user=user,
@@ -1908,6 +2039,23 @@ def export_transactions(
     Deducts 5 credits for Passcode users (Admin bypasses deduction).
     Includes UTF-8 BOM for Microsoft Excel Arabic support.
     """
+    user = actor_info.get("user")
+    if actor_info.get("type") == "demo" or (user and getattr(user, "role", "") == "demo"):
+        demo_results = search_demo_transactions(sender=sender, amount=min_amount)
+        csv_lines = ["\ufeffTransaction ID,Bank,Amount,Currency,Reference ID,Sender,Account Ending,Status,Received At"]
+        for d in demo_results:
+            csv_lines.append(f'{d["id"]},{d["bank_name"]},{d["amount"]},{d["currency"]},{d["reference_id"]},{d["sender_name"]},{d["account_ending"]},{d["status"]},{d["received_at"]}')
+        csv_content = "\r\n".join(csv_lines).encode("utf-8")
+        filename = f"demo_sandbox_transactions_{date.today().isoformat()}.csv"
+        return Response(
+            content=csv_content,
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Type": "text/csv; charset=utf-8",
+            },
+        )
+
     csv_content = export_transactions_csv(
         db=db,
         actor_info=actor_info,
@@ -1945,6 +2093,22 @@ def get_statement_summary_endpoint(
     Returns high-level summary metrics (record count, total volume) for the merchant statement
     within the requested date range without leaking individual raw transaction rows.
     """
+    if current_user.role == "demo" or current_user.id == 999999:
+        demo_items = search_demo_transactions()
+        total_vol = sum(d["amount"] for d in demo_items)
+        return StatementSummaryResponse(
+            total_count=len(demo_items),
+            total_volume=total_vol,
+            matched_count=len(demo_items),
+            claimed_count=sum(1 for d in demo_items if d["status"] == "CLAIMED"),
+            matched_only_count=len(demo_items),
+            unclaimed_count=sum(1 for d in demo_items if d["status"] == "UNCLAIMED"),
+            unmatched_count=0,
+            date_from=(utc_now() - timedelta(days=30)).strftime("%Y-%m-%d"),
+            date_to=utc_now().strftime("%Y-%m-%d"),
+            export_fee_credits=10,
+        )
+
     summary = get_statement_summary(db=db, merchant=current_user, date_from=date_from, date_to=date_to)
     return StatementSummaryResponse(**summary)
 
@@ -1962,6 +2126,12 @@ def export_statement_pdf_endpoint(
     Exports an official, auditor-ready PDF Statement of all bank SMS transactions in the date range.
     Requires user confirmation and deducts 10 credits from their balance.
     """
+    if current_user.role == "demo" or current_user.id == 999999:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="PDF statement generation is disabled in Demo Sandbox Mode.",
+        )
+
     if not payload.confirm:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -2551,6 +2721,12 @@ def handle_order_create(
     Registers a new pending order with order_id, amount, and optional reference_id.
     Associates the order with the authenticated merchant.
     """
+    if is_demo_passcode(auth_key):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="State modification is disabled in Demo Sandbox Mode.",
+        )
+
     caller_user = resolve_merchant_from_key(db, auth_key)
     caller_user_id = caller_user.id if caller_user else None
 
@@ -2582,6 +2758,12 @@ def handle_order_verify(
     2. Fallback to matching by exact amount within 30-minute window for UNCLAIMED credits of this merchant.
     3. Atomically updates credit to CLAIMED and order to MATCHED.
     """
+    if is_demo_passcode(auth_key):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="State modification is disabled in Demo Sandbox Mode.",
+        )
+
     caller_user = resolve_merchant_from_key(db, auth_key)
 
     is_verified, order, matched_credit, message = verify_order(
@@ -2628,6 +2810,12 @@ def handle_create_checkout_session(
     2. Merchant E-Commerce Switch (merchant.ecommerce_enabled)
     3. Active subscription validity & credit wallet balance.
     """
+    if is_demo_passcode(auth_key):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="State modification is disabled in Demo Sandbox Mode.",
+        )
+
     caller_user = resolve_merchant_from_key(db, auth_key)
     if not caller_user:
         raise HTTPException(
@@ -2952,6 +3140,12 @@ def initiate_topup(
     Creates a pending top-up order (Direct Purchase or Gift Code) for the user to pay via InstaPay.
     InstaPay receiving details are dynamically loaded from secure backend settings.
     """
+    if getattr(current_user, "role", "") == "demo" or current_user.id == 999999:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="State modification is disabled in Demo Sandbox Mode.",
+        )
+
     order, plan = initiate_topup_order(
         db=db,
         user=current_user,
@@ -2990,6 +3184,12 @@ def verify_topup_payment(
     - If Direct Purchase: automatically extends subscription & credits on user's account.
     - If Gift Code: generates a 90-day one-time voucher code (PASS-XXXX-XXXX) and emails it to the recipient.
     """
+    if getattr(current_user, "role", "") == "demo" or current_user.id == 999999:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="State modification is disabled in Demo Sandbox Mode.",
+        )
+
     server_host = payload.server_url or str(request.base_url).rstrip("/")
     success, updated_user, amount, message, voucher_code, voucher_expires_at, purchase_type, order_status = verify_and_apply_topup(
         db=db,
@@ -3746,6 +3946,48 @@ def get_livestream_feed(
     Verifies 30-day Live Stream validity and 5-day grace period. Consumes 0 search credits.
     Protected by Cashier Shift Gate (SEC-005): enforces X-Shift-Token for non-admin merchants.
     """
+    if current_user.role == "demo" or current_user.id == 999999:
+        demo_feed_items = get_demo_livestream_feed()
+        now = utc_now()
+        demo_items = []
+        for i, item in enumerate(demo_feed_items):
+            demo_items.append(
+                LiveStreamTransactionItem(
+                    id=item["id"],
+                    amount=item["amount"],
+                    currency=item["currency"],
+                    bank_name=item["bank_name"],
+                    account_ending=item["account_ending"],
+                    sender_name=item["sender_name"],
+                    reference_id=item["reference_id"],
+                    status="VERIFIED" if item["status"] == "CLAIMED" else "UNCLAIMED",
+                    is_matched=item["is_matched"],
+                    is_read=False,
+                    read_at=None,
+                    received_at=item["received_at"],
+                    is_highlighted=(i == 0),
+                )
+            )
+        return LiveStreamFeedResponse(
+            is_unlocked=True,
+            in_grace_period=False,
+            grace_days_remaining=30,
+            expires_at=now + timedelta(days=30),
+            grace_until=None,
+            telemetry=ForwarderTelemetryRead(
+                status="ONLINE",
+                last_seen_at=now,
+                battery=94,
+                network="4G LTE (Vodafone EG)",
+                uptime="14d 6h 32m",
+                ping_ms=22,
+                device="Samsung Galaxy A54 (Demo Bridge)",
+            ),
+            unread_count=len(demo_items),
+            total_count=len(demo_items),
+            items=demo_items,
+        )
+
     feed = get_livestream_feed_data(db=db, user=current_user, since_id=since_id, limit=limit)
     if feed.is_unlocked:
         is_admin = current_user.id == 0 or getattr(current_user, "role", "user") == "admin" or current_user.name == "Super Admin"
@@ -3772,6 +4014,9 @@ def mark_livestream_read(
     Cashier Acknowledgment: Marks one, multiple, or all transactions as Read.
     Removes visual highlighting from the cashier screen.
     """
+    if current_user.role == "demo" or current_user.id == 999999:
+        return {"success": True, "updated_count": len(payload.credit_ids) if payload.credit_ids else 6}
+
     count = mark_credits_read(
         db=db,
         user=current_user,
